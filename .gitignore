@@ -11,7 +11,8 @@
 */dist
 /build
 /dist
-# */data
+*/data
+*/images
 */htmlcov
 nimcache/
 *.pyc

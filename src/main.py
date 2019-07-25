@@ -114,7 +114,7 @@ TRIM.copy_output_files(srim_executable_directory, data_out_dir)
 
 
 # to units of Angstromsenergy_damage = (phon.ions + phon.recoils)*dx
-def plot_damage_energy(folder: Path, ax: plt.axis) -> float:
+def plot_damage_energy(in_folder: Path, ax: plt.axis) -> float:
     results = Results(folder)
     phon = results.phonons
     dx = max(phon.depth) / 100.0  # to units of Angstroms
@@ -140,3 +140,7 @@ for ax, folder in zip(np.ravel(axes), folders):
 fig.suptitle('Damage Energy vs. Depth', fontsize=15)
 fig.set_size_inches((20, 6))
 fig.savefig(os.path.join(image_out_dir, 'damagevsdepth.png'), transparent=True)
+
+
+if __name__ == "__main__":
+    pass
