@@ -7,9 +7,10 @@ import matplotlib.pyplot as plt
 from srim import Ion, Layer, Target, TRIM
 from srim.output import Results
 
+from concurrent.futures import ThreadPoolExecutor
 
-from typing import Union
-from typing_extensions import Literal
+from typing import Union, List
+from typing_extensions import Literal, Final
 
 
 # Construct a 3MeV Nickel ion
@@ -31,11 +32,13 @@ for element, prop in layer.elements.items():
     print(prop['stoich'], prop['E_d'], prop['lattice'], prop['surface'])
 """
 
+precisionLitType = Literal['um', 'nm', 'A', 'a', 'micro', 'nano', 'angstrom', 'angstroms', 'Angstrom', 'Angstroms']
+
 
 def make_element_subfolder_name(layer: Layer, ion: Ion,
-                                precision: Literal['um', 'nm', 'A', 'a', 'micro', 'nano', 'angstrom'] = 'um') -> Path:
-    """create a folder from layer elements and stoichiometries and ion type and energy
-    data_path default = '.\\data'. precision is units of the layer width, default = 'um' """
+                                precision: precisionLitType = 'um') -> Path:
+    """create a folder from layer elements and stoichiometries and ion type and energy.
+    precision is units of the layer width, default = 'um' """
 
     for (element, prop) in layer.elements.items():
         stoich = prop['stoich']
@@ -51,9 +54,9 @@ def make_element_subfolder_name(layer: Layer, ion: Ion,
     layer_width_um = f'{layer.width / 10000:.0f}um'
     ion_energy_kev = f'{ion.energy / 1000:.0f}keV'
 
-    if precision == 'um':
+    if precision == 'um' or precision == 'micro':
         layer_width = layer_width_um
-    elif precision == 'nm':
+    elif precision == 'nm' or precision == 'nano':
         layer_width = layer_width_nm
     else:
         layer_width = layer.width
@@ -62,9 +65,10 @@ def make_element_subfolder_name(layer: Layer, ion: Ion,
     return data_subfolder_name
 
 
-def make_data_path(layer: Layer, ion: Ion,
+def make_data_path(layer: Layer,
+                   ion: Ion,
                    data_path: Union[Path, str] = Path(R'.\data'),
-                   precision: Literal['um', 'nm', 'A', 'a', 'micro', 'nano', 'angstrom'] = 'um') -> Path:
+                   precision: precisionLitType = 'um') -> Path:
     """create a folder from layer elements and stoichiometries and ion type and energy
     data_path default = '.\\data'. precision is units of the layer width, default = 'um' """
 
@@ -76,9 +80,9 @@ def make_data_path(layer: Layer, ion: Ion,
 
 def make_image_path(layer: Layer, ion: Ion,
                     image_path: Union[Path, str] = Path(R'.\images'),
-                    precision: Literal['um', 'nm', 'A', 'a', 'micro', 'nano', 'angstrom'] = 'um') -> Path:
+                    precision: precisionLitType = 'um') -> Path:
     """create a folder from layer elements and stoichiometries and ion type and energy
-    data_path default = '.\\data'. precision is units of the layer width, default = 'um' """
+    data_path default = '.\\images'. precision is units of the layer width, default = 'um' """
 
     data_subfolder_name = make_element_subfolder_name(layer, ion, precision)
     outimage_directory: Path = Path(image_path) / data_subfolder_name
@@ -94,7 +98,7 @@ target = Target([layer])
 trim = TRIM(target, ion, number_ions=25, calculation=1)
 
 # Specify the directory of SRIM.exe# For windows users the path will include  C://...
-srim_executable_directory = 'C://srim'
+srim_executable_directory: Final = R'C:\srim'
 
 # takes about 10 seconds on my laptop
 results = trim.run(srim_executable_directory)  # If all went successfull you should have seen a TRIM window popup and run 25 ions!
@@ -105,42 +109,64 @@ results = trim.run(srim_executable_directory)  # If all went successfull you sho
 # all_csv_files = Path.cwd().rglob('*.csv')
 # from shutil import copyfile
 # copyfile(source, destination)
-data_path = Path(R'.\data')
-image_path = Path(R'.\images')
+data_path: Final = Path(R'.\data')
+image_path: Final = Path(R'.\images')
 data_out_dir = make_data_path(layer, ion, data_path)
 
 TRIM.copy_output_files(srim_executable_directory, data_out_dir)
 # results = Results(output_directory)
 
 
-# to units of Angstromsenergy_damage = (phon.ions + phon.recoils)*dx
-def plot_damage_energy(in_folder: Path, ax: plt.axis) -> float:
-    results = Results(folder)
+def get_energy_damage_array(results: Results) -> np.ndarray:
     phon = results.phonons
-    dx = max(phon.depth) / 100.0  # to units of Angstroms
+    dx = max(phon.depth) / 1000.0  # units from pm to nm
     energy_damage = (phon.ions + phon.recoils) * dx
+    damage_array_nm = np.array(phon.depth / 1000, energy_damage / phon.num_ions)
+    return damage_array_nm
+
+
+def calc_energy_damage(results: Results, units: precisionLitType = 'nm') -> List[float]:
+    phon = results.phonons
+    if units in ('nm', 'nano'):
+        dx = max(phon.depth) / 1000.0  # units from pm to nm
+    elif units in ('a', 'A', 'angstrom', 'angstroms', 'Angstrom', 'Angstroms'):
+        dx = max(phon.depth) / 100.0  # units from pm to Angstroms
+    energy_damage: List[float] = (phon.ions + phon.recoils) * dx
+    return energy_damage
+
+
+def plot_damage_energy(results: Results, ax: plt.axis, units: precisionLitType = 'nm') -> None:
+    phon = results.phonons
+    if units in ('nm', 'nano'):
+        units_str = 'nm'
+    elif units in ('a', 'A', 'angstrom', 'angstroms', 'Angstrom', 'Angstroms'):
+        units_str = 'Angstroms'
+    energy_damage = calc_energy_damage(results, units)
     ax.plot(phon.depth, energy_damage / phon.num_ions, label='{}'.format(folder))
-    return sum(energy_damage)
-
-
-folders = [data_out_dir]
-image_out_dir = make_image_path(layer, ion)
-os.makedirs(image_out_dir, exist_ok=True)
-
-fig, axes = plt.subplots(1, len(folders), sharex=True, sharey=True)
-
-for ax, folder in zip(np.ravel(axes), folders):
-    energy_damage = plot_damage_energy(folder, ax)
-    energy_damage_kev = energy_damage / 1000
-    print("Damage energy: {:.1f} keV".format(energy_damage_kev))
-    ax.set_xlabel('Depth [Angstroms]')
+    ax.set_xlabel(f'Depth [{units_str}]')
     ax.set_ylabel('eV')
     ax.legend()
 
-fig.suptitle('Damage Energy vs. Depth', fontsize=15)
-fig.set_size_inches((20, 6))
-fig.savefig(os.path.join(image_out_dir, 'damagevsdepth.png'), transparent=True)
+
+
 
 
 if __name__ == "__main__":
-    pass
+    folders: List[Union[str, Path]] = [data_out_dir]
+    image_out_dir = make_image_path(layer, ion)
+    os.makedirs(image_out_dir, exist_ok=True)
+
+    fig, axes = plt.subplots(1, len(folders), sharex=True, sharey=True)
+    for ax, folder in zip(np.ravel(axes), folders):
+        results = Results(folder)
+        energy_damage_sum: float = sum(calc_energy_damage(results))
+        energy_damage_kev = energy_damage_sum / 1000
+        print("Damage energy: {:.1f} keV".format(energy_damage_kev))
+        plot_damage_energy(results, ax, units='nm')
+
+    with ThreadPoolExecutor() as exc:
+        pass  # add folders to list, get results list?, then map jobs to folders?
+
+    fig.suptitle('Damage Energy vs. Depth', fontsize=15)
+    fig.set_size_inches((20, 6))
+    fig.savefig(os.path.join(image_out_dir, 'damagevsdepth.png'), transparent=True)
