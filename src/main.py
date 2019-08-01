@@ -10,20 +10,56 @@ from srim.output import Results
 from concurrent.futures import ThreadPoolExecutor
 
 from typing import Union, List
-from typing_extensions import Literal, Final
+from typing_extensions import Final
+from mytypes import floatArray, precisionLitType
 
 
-# Construct a 3MeV Nickel ion
-ion = Ion('Ni', energy=3.0e6)
+srim_executable_directory: Final = R'C:\srim'
+
+# TODO get a .csv of element data, iport and extract line as dict?
+# TODO element picker GUI
+elem_ce_dict = {'E_d': 25.0, 'lattice': 3.0, 'surface': 4.23, 'atomic_num': 58, 'atomic_mass': 140.1}
+elem_u_dict = {'E_d': 25.0, 'lattice': 3.0, 'surface': 5.42, 'atomic_num': 92, 'atomic_mass': 238.0}
+elem_th_dict = {'E_d': 25.0, 'lattice': 3.0, 'surface': 5.93, 'atomic_num': 90, 'atomic_mass': 232.0}
+elem_o_dict = {'E_d': 28.0, 'lattice': 3.0, 'surface': 2.00, 'atomic_num': 8, 'atomic_mass': 15.99}
+
+
+energy__kev_list = [100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000]
+
+
+ion_Ni = Ion('Ni', energy=3.0e6)
+ions_He_list = [Ion('He', energy=x * 1000) for x in energy__kev_list]
 # print(ion.symbol, ion.name)
 # print(ion.energy)
 
 
-# Construct a layer of nick 20um thick with a displacement energy of 30 eV
-layer = Layer(
+# Construct layers
+layer_Ni = Layer(
     {'Ni': {'stoich': 1.0, 'E_d': 30.0, 'lattice': 0.0, 'surface': 3.0}},
-    density=8.9, width=20_000.0
+    density=8.9, width=20_000.0, name='Ni'
 )
+
+layer_CeO2_1um = Layer(
+    {'Ce': {'stoich': 1.0, **elem_ce_dict},
+     'O': {'stoich': 2.0, **elem_o_dict},
+     },
+    density=7.22, width=10_000.0, name='ceria'
+)
+
+layer_CeO2_2um = Layer(
+    {'Ce': {'stoich': 1.0, **elem_ce_dict},
+     'O': {'stoich': 2.0, **elem_o_dict},
+     },
+    density=7.22, width=20_000.0, name='ceria'
+)
+
+layer_CeO2_5um = Layer(
+    {'Ce': {'stoich': 1.0, **elem_ce_dict},
+     'O': {'stoich': 2.0, **elem_o_dict},
+     },
+    density=7.22, width=50_000.0, name='ceria'
+)
+
 """
 print(layer.elements.keys())
 print(layer.width)  # angstroms
@@ -32,23 +68,29 @@ for element, prop in layer.elements.items():
     print(prop['stoich'], prop['E_d'], prop['lattice'], prop['surface'])
 """
 
-precisionLitType = Literal['um', 'nm', 'A', 'a', 'micro', 'nano', 'angstrom', 'angstroms', 'Angstrom', 'Angstroms']
-
 
 def make_element_subfolder_name(layer: Layer, ion: Ion,
-                                precision: precisionLitType = 'um') -> Path:
+                                precision: 'precisionLitType' = 'um') -> Path:
     """create a folder from layer elements and stoichiometries and ion type and energy.
     precision is units of the layer width, default = 'um' """
 
-    for (element, prop) in layer.elements.items():
-        stoich = prop['stoich']
-        if stoich == 1.0:
-            element_str = element.symbol
-        elif stoich.is_integer():
-            element_str = f'element.symbol{stoich:.0f}'
-        else:
-            element_str = f'element.symbol{stoich:.2f}'
-        element_list_str = "".join(element_str)
+    if layer.name:
+        element_list_str = layer.name
+    else:
+        element_list = []
+        for (element, prop) in layer.elements.items():
+            stoich = prop['stoich']
+            # print(element.symbol, stoich)
+            if stoich == 1.0:
+                element_str = element.symbol
+            elif stoich.is_integer():
+                element_str = f'{element.symbol}{stoich:.0f}'
+            else:
+                element_str = f'{element.symbol}{stoich:.2f}'
+            # print(element_str)
+            element_list.append(element_str)
+        element_list_str = "-".join(element_list)
+        # print(element_list_str)
 
     layer_width_nm = f'{layer.width / 10:.0f}nm'
     layer_width_um = f'{layer.width / 10000:.0f}um'
@@ -62,6 +104,7 @@ def make_element_subfolder_name(layer: Layer, ion: Ion,
         layer_width = layer.width
 
     data_subfolder_name = Path(f"{element_list_str}_{layer_width}_{ion.symbol}@{ion_energy_kev}")
+    print(data_subfolder_name)
     return data_subfolder_name
 
 
@@ -91,17 +134,13 @@ def make_image_path(layer: Layer, ion: Ion,
 
 
 # Construct a target of a single layer of Nickel
-target = Target([layer])
-
-
 # Initialize a TRIM calculation with given target and ion for 25 ions, quick˓→calculation
-trim = TRIM(target, ion, number_ions=25, calculation=1)
-
 # Specify the directory of SRIM.exe# For windows users the path will include  C://...
-srim_executable_directory: Final = R'C:\srim'
-
 # takes about 10 seconds on my laptop
-results = trim.run(srim_executable_directory)  # If all went successfull you should have seen a TRIM window popup and run 25 ions!
+# If all went successfull you should have seen a TRIM window popup and run 25 ions!
+target_Ni = Target([layer_Ni])
+trim_Ni = TRIM(target_Ni, ion_Ni, number_ions=25, calculation=1)
+results = trim_Ni.run(srim_executable_directory)
 
 
 # os.makedirs(output_directory, exist_ok=True)
@@ -111,10 +150,32 @@ results = trim.run(srim_executable_directory)  # If all went successfull you sho
 # copyfile(source, destination)
 data_path: Final = Path(R'.\data')
 image_path: Final = Path(R'.\images')
-data_out_dir = make_data_path(layer, ion, data_path)
-
+data_out_dir = make_data_path(layer_Ni, ion_Ni, data_path)
 TRIM.copy_output_files(srim_executable_directory, data_out_dir)
 # results = Results(output_directory)
+
+width_list = [10_000, 20_000, 50_000]
+
+
+layer_ceria_list = [Layer(
+    {'Ce': {'stoich': 1.0, **elem_ce_dict},
+     'O': {'stoich': 2.0, **elem_o_dict},
+     },  density=7.22, width=width, name='ceria') for width in width_list]
+
+layer_list =  layer_ceria_list + [layer_Ni]
+
+target_list = [Target([layer]) for layer in layer_list]
+
+results_list = []
+for ion in ions_He_list:
+    for i, target in enumerate(target_list):
+        data_out_dir = make_data_path(layer_list[i], ion, data_path)
+        trim = TRIM(target, ion, number_ions=25, calculation=1)
+        results = trim.run(srim_executable_directory)
+        results_list.append(results)
+        TRIM.copy_output_files(srim_executable_directory, data_out_dir)
+        print(f'{ion.symbol}-{ion.energy/1000}kev done')
+"""to use threading, need to generate different srim data dir for each thread? Worth it?"""
 
 
 def get_energy_damage_array(results: Results) -> np.ndarray:
@@ -125,13 +186,13 @@ def get_energy_damage_array(results: Results) -> np.ndarray:
     return damage_array_nm
 
 
-def calc_energy_damage(results: Results, units: precisionLitType = 'nm') -> List[float]:
+def calc_energy_damage(results: Results, units: precisionLitType = 'nm') -> floatArray:
     phon = results.phonons
     if units in ('nm', 'nano'):
         dx = max(phon.depth) / 1000.0  # units from pm to nm
     elif units in ('a', 'A', 'angstrom', 'angstroms', 'Angstrom', 'Angstroms'):
         dx = max(phon.depth) / 100.0  # units from pm to Angstroms
-    energy_damage: List[float] = (phon.ions + phon.recoils) * dx
+    energy_damage: floatArray = (phon.ions + phon.recoils) * dx  # add the arrays and multiply
     return energy_damage
 
 
@@ -148,12 +209,9 @@ def plot_damage_energy(results: Results, ax: plt.axis, units: precisionLitType =
     ax.legend()
 
 
-
-
-
 if __name__ == "__main__":
     folders: List[Union[str, Path]] = [data_out_dir]
-    image_out_dir = make_image_path(layer, ion)
+    image_out_dir = make_image_path(layer_Ni, ion_Ni)
     os.makedirs(image_out_dir, exist_ok=True)
 
     fig, axes = plt.subplots(1, len(folders), sharex=True, sharey=True)

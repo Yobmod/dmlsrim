@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 # from ../src/main import
-from ..src.main import ion, layer, make_image_path
+from ..src.main import ion_Ni, layer_Ni, make_image_path
 
 
 def test_make_image_path() -> None:

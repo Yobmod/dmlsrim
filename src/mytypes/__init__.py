@@ -1,11 +1,14 @@
-from typing import Type, TYPE_CHECKING, Tuple, Union, List, NewType  # , Any, NewType, TypeVar
+from typing import TYPE_CHECKING, Tuple, Union, List, NewType  # , Any, NewType, TypeVar
+from typing_extensions import Literal
 from PIL import Image
 import numpy as np
+
+precisionLitType = Literal['um', 'nm', 'A', 'a', 'micro', 'nano', 'angstrom', 'angstroms', 'Angstrom', 'Angstroms']
 
 
 if TYPE_CHECKING:  # for mypy
     class ndarray(np.ndarray): ...
-    imageType = NewType('imageType', np._ArrayLike[np.ndarray[np.ndarray[int]]])
+    imageType = NewType('imageType', np._ArrayLike[np.ndarray[np.ndarray[int]]])  # requres numpy stubs to be discoverable by mypy
     intArray = np.ndarray[int]
     floatArray = np.ndarray[float]
 else:  # python doesnt allow ndarray subscriptable yet
