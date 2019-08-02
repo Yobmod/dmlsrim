@@ -162,7 +162,7 @@ layer_ceria_list = [Layer(
      'O': {'stoich': 2.0, **elem_o_dict},
      },  density=7.22, width=width, name='ceria') for width in width_list]
 
-layer_list =  layer_ceria_list + [layer_Ni]
+layer_list = layer_ceria_list + [layer_Ni]
 
 target_list = [Target([layer]) for layer in layer_list]
 
@@ -175,7 +175,8 @@ for ion in ions_He_list:
         results_list.append(results)
         TRIM.copy_output_files(srim_executable_directory, data_out_dir)
         print(f'{ion.symbol}-{ion.energy/1000}kev done')
-"""to use threading, need to generate different srim data dir for each thread? Worth it?"""
+"""to use threading, need to generate different srim data dir for each thread? Worth it?
+or just threading for result analysis?"""
 
 
 def get_energy_damage_array(results: Results) -> np.ndarray:
