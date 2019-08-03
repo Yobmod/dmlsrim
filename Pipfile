@@ -5,20 +5,18 @@ verify_ssl = true
 
 [dev-packages]
 cython = "*"
-
 mypy = "*"
 pytest = "*"
 pytest-cov = "*"
 pytest-mypy = "*"
 pytest-sugar = "*"
 pytest-xdist = "*"
-
 pylama = "*"
 autopep8 = "*"
 flake8 = "*"
 flake8-comprehensions = "*"
-
 pdbpp = "*"
+pipenv = "*"
 
 [packages]
 matplotlib = "*"  # brings numpy
@@ -32,6 +30,9 @@ python-dotenv = "*"
 # boltons = "*"
 # keras = "*"
 # sklearn = "*"
+colorama = "*"
+termcolor = "*"
+chempy = "*"
 
 [requires]
 python_version = "3.7"

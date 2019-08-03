@@ -1,5 +1,10 @@
 {
     "python.pythonPath": "C:\\Users\\UTGARD2\\.virtualenvs\\dmlsrim-3HuvLmQ8\\Scripts\\python.exe",
+    "python.autoComplete.extraPaths": [
+        ".",
+        ".\\src",
+        ".\\tests",
+    ],
     "python.linting.enabled": true,
     "python.linting.mypyEnabled": true,
     "python.linting.pylamaEnabled": true,
@@ -7,5 +12,11 @@
     "python.testing.promptToConfigure": false,
     "python.testing.pytestEnabled": true,
     "python.testing.unittestEnabled": false,
-    "python.testing.nosetestsEnabled": false
+    "python.testing.pytestArgs": [
+        ".",
+    ],
+    "python.testing.pytestPath": "./pytest",
+    "python.testing.nosetestsEnabled": false,
+    "python.formatting.provider": "autopep8",
+    "editor.formatOnSave": true,
 }

@@ -14,9 +14,9 @@ from typing_extensions import Final
 from mytypes import floatArray, precisionLitType
 
 
-srim_executable_directory: Final = R'C:\srim'
+srim_executable_directory: Final = Path(R'C:\srim')
 
-# TODO get a .csv of element data, iport and extract line as dict?
+# TODO get a .csv of element data, iport and extract line as dict?  check srim.core.elementdb.py!!1!
 # TODO element picker GUI
 elem_ce_dict = {'E_d': 25.0, 'lattice': 3.0, 'surface': 4.23, 'atomic_num': 58, 'atomic_mass': 140.1}
 elem_u_dict = {'E_d': 25.0, 'lattice': 3.0, 'surface': 5.42, 'atomic_num': 92, 'atomic_mass': 238.0}
@@ -69,6 +69,7 @@ for element, prop in layer.elements.items():
 """
 
 
+# TODO - use parser or chempy for this?
 def make_element_subfolder_name(layer: Layer, ion: Ion,
                                 precision: 'precisionLitType' = 'um') -> Path:
     """create a folder from layer elements and stoichiometries and ion type and energy.
@@ -133,52 +134,6 @@ def make_image_path(layer: Layer, ion: Ion,
     return outimage_directory
 
 
-# Construct a target of a single layer of Nickel
-# Initialize a TRIM calculation with given target and ion for 25 ions, quick˓→calculation
-# Specify the directory of SRIM.exe# For windows users the path will include  C://...
-# takes about 10 seconds on my laptop
-# If all went successfull you should have seen a TRIM window popup and run 25 ions!
-target_Ni = Target([layer_Ni])
-trim_Ni = TRIM(target_Ni, ion_Ni, number_ions=25, calculation=1)
-results = trim_Ni.run(srim_executable_directory)
-
-
-# os.makedirs(output_directory, exist_ok=True)
-# top_level_csv_files = Path.cwd().glob('*.csv')
-# all_csv_files = Path.cwd().rglob('*.csv')
-# from shutil import copyfile
-# copyfile(source, destination)
-data_path: Final = Path(R'.\data')
-image_path: Final = Path(R'.\images')
-data_out_dir = make_data_path(layer_Ni, ion_Ni, data_path)
-TRIM.copy_output_files(srim_executable_directory, data_out_dir)
-# results = Results(output_directory)
-
-width_list = [10_000, 20_000, 50_000]
-
-
-layer_ceria_list = [Layer(
-    {'Ce': {'stoich': 1.0, **elem_ce_dict},
-     'O': {'stoich': 2.0, **elem_o_dict},
-     },  density=7.22, width=width, name='ceria') for width in width_list]
-
-layer_list = layer_ceria_list + [layer_Ni]
-
-target_list = [Target([layer]) for layer in layer_list]
-
-results_list = []
-for ion in ions_He_list:
-    for i, target in enumerate(target_list):
-        data_out_dir = make_data_path(layer_list[i], ion, data_path)
-        trim = TRIM(target, ion, number_ions=25, calculation=1)
-        results = trim.run(srim_executable_directory)
-        results_list.append(results)
-        TRIM.copy_output_files(srim_executable_directory, data_out_dir)
-        print(f'{ion.symbol}-{ion.energy/1000}kev done')
-"""to use threading, need to generate different srim data dir for each thread? Worth it?
-or just threading for result analysis?"""
-
-
 def get_energy_damage_array(results: Results) -> np.ndarray:
     phon = results.phonons
     dx = max(phon.depth) / 1000.0  # units from pm to nm
@@ -211,6 +166,49 @@ def plot_damage_energy(results: Results, ax: plt.axis, units: precisionLitType =
 
 
 if __name__ == "__main__":
+    # Construct a target of a single layer of Nickel
+    # Initialize a TRIM calculation with given target and ion for 25 ions, quick˓→calculation
+    # Specify the directory of SRIM.exe# For windows users the path will include  C://...
+    # takes about 10 seconds on my laptop
+    # If all went successfull you should have seen a TRIM window popup and run 25 ions!
+    target_Ni = Target([layer_Ni])
+    trim_Ni = TRIM(target_Ni, ion_Ni, number_ions=25, calculation=1)
+    results = trim_Ni.run(srim_executable_directory)
+
+    # os.makedirs(output_directory, exist_ok=True)
+    # top_level_csv_files = Path.cwd().glob('*.csv')
+    # all_csv_files = Path.cwd().rglob('*.csv')
+    # from shutil import copyfile
+    # copyfile(source, destination)
+    data_path: Final = Path(R'.\data')
+    image_path: Final = Path(R'.\images')
+    data_out_dir = make_data_path(layer_Ni, ion_Ni, data_path)
+    TRIM.copy_output_files(srim_executable_directory, data_out_dir)
+    # results = Results(output_directory)
+
+    width_list = [10_000, 20_000, 50_000]
+
+    layer_ceria_list = [Layer(
+        {'Ce': {'stoich': 1.0, **elem_ce_dict},
+         'O': {'stoich': 2.0, **elem_o_dict},
+         },  density=7.22, width=width, name='ceria') for width in width_list]
+
+    layer_list = layer_ceria_list + [layer_Ni]
+
+    target_list = [Target([layer]) for layer in layer_list]
+
+    results_list = []
+    for ion in ions_He_list:
+        for i, target in enumerate(target_list):
+            data_out_dir = make_data_path(layer_list[i], ion, data_path)
+            trim = TRIM(target, ion, number_ions=25, calculation=1)
+            results = trim.run(srim_executable_directory)
+            results_list.append(results)
+            TRIM.copy_output_files(srim_executable_directory, data_out_dir)
+            print(f'{ion.symbol}-{ion.energy/1000}kev done')
+    """to use threading, need to generate different srim data dir for each thread? Worth it?
+    or just threading for result analysis?"""
+
     folders: List[Union[str, Path]] = [data_out_dir]
     image_out_dir = make_image_path(layer_Ni, ion_Ni)
     os.makedirs(image_out_dir, exist_ok=True)

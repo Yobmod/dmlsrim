@@ -2,12 +2,15 @@
 
 import sys
 from termcolor import colored
+import colorama
 import re
 from collections import Counter
 import warnings
 from typing import Dict, Tuple, List, Iterable, Mapping
 
 FormulaType = str
+
+colorama.init()
 
 ATOM_REGEX = r'([A-Z][a-z]*)(\d*)'
 OPENERS = r'({['
@@ -119,22 +122,22 @@ def parse_formula(formula: FormulaType) -> Dict[str, int]:
     """Parse the formula and return a dict with occurences of each atom."""
 
     warn_text = (colored('Check your formula [', 'yellow', attrs=['bold']) +
-                 colored(formula, 'green', attrs=['bold']) +
-                 colored('] - are all the element symbols correct?', 'yellow', attrs=['bold']))
+                 colored(formula, 'red', attrs=['bold']) +
+                 colored('] - are all the element symbols correct?\n', 'yellow', attrs=['bold']))
 
     if not is_real_elements(formula):
-        print('\n')
         warnings.warn(warn_text, category=UserWarning, stacklevel=4)
 
     try:
         if not is_balanced(formula):
-            raise ValueError(colored("Watch your brackets ![{]$[&?)]}!]", 'red'))
+            raise ValueError(colored("Watch your brackets ![{]$[&?)]}!]", 'red', attrs=['bold']))
     except ValueError as v_err:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         #fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         #print(exc_type, fname, exc_tb.tb_lineno)
         if exc_type:
-            print(f'\nError: {exc_type.__name__}: {v_err}')
+            print(f'Error: {exc_type.__name__}: {v_err}\n')
+
         sys.exit()
 
     parsed = _parse(formula)[0]
@@ -149,6 +152,7 @@ def parse_formula(formula: FormulaType) -> Dict[str, int]:
 
 def parse_print_from_input() -> None:
     formula = str(input("\nEnter chemical formula: \n"))
+    print("")
     res = parse_formula(formula)
     colored_res = colored(str(res), 'green', attrs=['bold'])
     print(f'Dict of elements from given formula: {colored_res}\n')
