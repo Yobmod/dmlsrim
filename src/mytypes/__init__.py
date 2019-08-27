@@ -7,7 +7,8 @@ precisionLitType = Literal['um', 'nm', 'A', 'a', 'micro', 'nano', 'angstrom', 'a
 
 
 if TYPE_CHECKING:  # for mypy
-    class ndarray(np.ndarray): ...
+    class ndarray(np.ndarray):
+        ...
     imageType = NewType('imageType', np._ArrayLike[np.ndarray[np.ndarray[int]]])  # requres numpy stubs to be discoverable by mypy
     intArray = np.ndarray[int]
     floatArray = np.ndarray[float]
@@ -17,7 +18,8 @@ else:  # python doesnt allow ndarray subscriptable yet
     floatArray = np.ndarray
 
 
-class PILImage(Image.Image): ...
+class PILImage(Image.Image):
+    ...
 
 
 colorType = Union[Tuple[int, int, int, int], Tuple[int, int, int]]

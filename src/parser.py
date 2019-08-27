@@ -6,7 +6,9 @@ import colorama
 import re
 from collections import Counter
 import warnings
+
 from typing import Dict, Tuple, List, Iterable, Mapping
+
 
 FormulaType = str
 
@@ -137,7 +139,6 @@ def parse_formula(formula: FormulaType) -> Dict[str, int]:
         #print(exc_type, fname, exc_tb.tb_lineno)
         if exc_type:
             print(f'Error: {exc_type.__name__}: {v_err}\n')
-
         sys.exit()
 
     parsed = _parse(formula)[0]

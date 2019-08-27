@@ -1,28 +1,54 @@
 import os
+import sys
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import matplotlib.pyplot as plt
+from colorama import init as color_init, Fore
 
-from srim import Ion, Layer, Target, TRIM
+from srim import Ion, Layer, Target  # , TRIM
+from srim.srim import TRIM
 from srim.output import Results
+import srim
+import yaml
+from srim.core import elementdb, element
 
-from concurrent.futures import ThreadPoolExecutor
-
-from typing import Union, List
-from typing_extensions import Final
+from typing import Union, List, cast
 from mytypes import floatArray, precisionLitType
 
+if sys.version_info < (3, 8):
+    from typing_extensions import Final
+else:
+    from typing import Final
+
+color_init(autoreset=True)
+
+dbpath = os.path.join(srim.__path__[0], 'data', 'elements.yaml')
+yaml.load(open(dbpath, "r"), Loader=yaml.FullLoader)
+
+# this via instance?
+element_database = elementdb.ElementDB()
+sulphur: element.Element = element_database.lookup('S')
+print(sulphur)
+# orthis bacause classmethod?
+sulphur = elementdb.ElementDB.lookup('S')
+print(sulphur)
 
 srim_executable_directory: Final = Path(R'C:\srim')
 
-# TODO get a .csv of element data, iport and extract line as dict?  check srim.core.elementdb.py!!1!
+
+# TODO get a .csv of element data, import and extract line as dict?
 # TODO element picker GUI
 elem_ce_dict = {'E_d': 25.0, 'lattice': 3.0, 'surface': 4.23, 'atomic_num': 58, 'atomic_mass': 140.1}
 elem_u_dict = {'E_d': 25.0, 'lattice': 3.0, 'surface': 5.42, 'atomic_num': 92, 'atomic_mass': 238.0}
 elem_th_dict = {'E_d': 25.0, 'lattice': 3.0, 'surface': 5.93, 'atomic_num': 90, 'atomic_mass': 232.0}
 elem_o_dict = {'E_d': 28.0, 'lattice': 3.0, 'surface': 2.00, 'atomic_num': 8, 'atomic_mass': 15.99}
 
+cmpd_ceo2_dict = {
+    'Ce': {'stoich': 1.0, **elem_ce_dict},
+    'O': {'stoich': 2.0, **elem_o_dict},
+}
 
 energy__kev_list = [100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000]
 
@@ -32,33 +58,12 @@ ions_He_list = [Ion('He', energy=x * 1000) for x in energy__kev_list]
 # print(ion.symbol, ion.name)
 # print(ion.energy)
 
-
 # Construct layers
 layer_Ni = Layer(
     {'Ni': {'stoich': 1.0, 'E_d': 30.0, 'lattice': 0.0, 'surface': 3.0}},
     density=8.9, width=20_000.0, name='Ni'
 )
 
-layer_CeO2_1um = Layer(
-    {'Ce': {'stoich': 1.0, **elem_ce_dict},
-     'O': {'stoich': 2.0, **elem_o_dict},
-     },
-    density=7.22, width=10_000.0, name='ceria'
-)
-
-layer_CeO2_2um = Layer(
-    {'Ce': {'stoich': 1.0, **elem_ce_dict},
-     'O': {'stoich': 2.0, **elem_o_dict},
-     },
-    density=7.22, width=20_000.0, name='ceria'
-)
-
-layer_CeO2_5um = Layer(
-    {'Ce': {'stoich': 1.0, **elem_ce_dict},
-     'O': {'stoich': 2.0, **elem_o_dict},
-     },
-    density=7.22, width=50_000.0, name='ceria'
-)
 
 """
 print(layer.elements.keys())
@@ -79,15 +84,15 @@ def make_element_subfolder_name(layer: Layer, ion: Ion,
         element_list_str = layer.name
     else:
         element_list = []
-        for (element, prop) in layer.elements.items():
+        for (elem, prop) in layer.elements.items():
             stoich = prop['stoich']
             # print(element.symbol, stoich)
             if stoich == 1.0:
-                element_str = element.symbol
+                element_str = elem.symbol
             elif stoich.is_integer():
-                element_str = f'{element.symbol}{stoich:.0f}'
+                element_str = f'{elem.symbol}{stoich:.0f}'
             else:
-                element_str = f'{element.symbol}{stoich:.2f}'
+                element_str = f'{elem.symbol}{stoich:.2f}'
             # print(element_str)
             element_list.append(element_str)
         element_list_str = "-".join(element_list)
@@ -105,16 +110,16 @@ def make_element_subfolder_name(layer: Layer, ion: Ion,
         layer_width = layer.width
 
     data_subfolder_name = Path(f"{element_list_str}_{layer_width}_{ion.symbol}@{ion_energy_kev}")
-    print(data_subfolder_name)
+    # print(data_subfolder_name)
     return data_subfolder_name
 
 
 def make_data_path(layer: Layer,
                    ion: Ion,
-                   data_path: Union[Path, str] = Path(R'.\data'),
+                   data_path: Union[Path, str] = Path(R'..\data'),
                    precision: precisionLitType = 'um') -> Path:
     """create a folder from layer elements and stoichiometries and ion type and energy
-    data_path default = '.\\data'. precision is units of the layer width, default = 'um' """
+    data_path default = '..\\data'. precision is units of the layer width, default = 'um' """
 
     data_subfolder_name = make_element_subfolder_name(layer, ion, precision)
     output_directory: Path = Path(data_path) / data_subfolder_name
@@ -123,10 +128,10 @@ def make_data_path(layer: Layer,
 
 
 def make_image_path(layer: Layer, ion: Ion,
-                    image_path: Union[Path, str] = Path(R'.\images'),
+                    image_path: Union[Path, str] = Path(R'..\images'),
                     precision: precisionLitType = 'um') -> Path:
     """create a folder from layer elements and stoichiometries and ion type and energy
-    data_path default = '.\\images'. precision is units of the layer width, default = 'um' """
+    data_path default = '..\\images'. precision is units of the layer width, default = 'um' """
 
     data_subfolder_name = make_element_subfolder_name(layer, ion, precision)
     outimage_directory: Path = Path(image_path) / data_subfolder_name
@@ -134,7 +139,7 @@ def make_image_path(layer: Layer, ion: Ion,
     return outimage_directory
 
 
-def get_energy_damage_array(results: Results) -> np.ndarray:
+def get_energy_damage_array(results: Results) -> 'floatArray':
     phon = results.phonons
     dx = max(phon.depth) / 1000.0  # units from pm to nm
     energy_damage = (phon.ions + phon.recoils) * dx
@@ -142,24 +147,26 @@ def get_energy_damage_array(results: Results) -> np.ndarray:
     return damage_array_nm
 
 
-def calc_energy_damage(results: Results, units: precisionLitType = 'nm') -> floatArray:
+def calc_energy_damage(results: Results, units: precisionLitType = 'nm') -> 'floatArray':
     phon = results.phonons
     if units in ('nm', 'nano'):
         dx = max(phon.depth) / 1000.0  # units from pm to nm
     elif units in ('a', 'A', 'angstrom', 'angstroms', 'Angstrom', 'Angstroms'):
         dx = max(phon.depth) / 100.0  # units from pm to Angstroms
     energy_damage: floatArray = (phon.ions + phon.recoils) * dx  # add the arrays and multiply
+    cast(floatArray, energy_damage)
+    # reveal_type(energy_damage)
     return energy_damage
 
 
-def plot_damage_energy(results: Results, ax: plt.axis, units: precisionLitType = 'nm') -> None:
+def plot_damage_energy(results: Results, ax: plt.Axes, units: precisionLitType = 'nm', plot_label: str = 'Collision damage depth') -> None:
     phon = results.phonons
     if units in ('nm', 'nano'):
         units_str = 'nm'
     elif units in ('a', 'A', 'angstrom', 'angstroms', 'Angstrom', 'Angstroms'):
         units_str = 'Angstroms'
     energy_damage = calc_energy_damage(results, units)
-    ax.plot(phon.depth, energy_damage / phon.num_ions, label='{}'.format(folder))
+    ax.plot(phon.depth, energy_damage / phon.num_ions, label=f'{plot_label}')
     ax.set_xlabel(f'Depth [{units_str}]')
     ax.set_ylabel('eV')
     ax.legend()
@@ -180,18 +187,17 @@ if __name__ == "__main__":
     # all_csv_files = Path.cwd().rglob('*.csv')
     # from shutil import copyfile
     # copyfile(source, destination)
-    data_path: Final = Path(R'.\data')
-    image_path: Final = Path(R'.\images')
+
+    # better to get cwd.parent then add data or images subfolder. Then src and tests are both using same folders. Also have to fix for tests?
+    data_path: Final = Path(R'..\data')
+    image_path: Final = Path(R'..\images')
     data_out_dir = make_data_path(layer_Ni, ion_Ni, data_path)
     TRIM.copy_output_files(srim_executable_directory, data_out_dir)
     # results = Results(output_directory)
 
     width_list = [10_000, 20_000, 50_000]
 
-    layer_ceria_list = [Layer(
-        {'Ce': {'stoich': 1.0, **elem_ce_dict},
-         'O': {'stoich': 2.0, **elem_o_dict},
-         },  density=7.22, width=width, name='ceria') for width in width_list]
+    layer_ceria_list = [Layer(cmpd_ceo2_dict, density=7.22, width=width, name='ceria') for width in width_list]
 
     layer_list = layer_ceria_list + [layer_Ni]
 
@@ -206,6 +212,7 @@ if __name__ == "__main__":
             results_list.append(results)
             TRIM.copy_output_files(srim_executable_directory, data_out_dir)
             print(f'{ion.symbol}-{ion.energy/1000}kev done')
+
     """to use threading, need to generate different srim data dir for each thread? Worth it?
     or just threading for result analysis?"""
 
@@ -213,16 +220,23 @@ if __name__ == "__main__":
     image_out_dir = make_image_path(layer_Ni, ion_Ni)
     os.makedirs(image_out_dir, exist_ok=True)
 
+    fig: plt.Figure
+    axes: plt.Axes
     fig, axes = plt.subplots(1, len(folders), sharex=True, sharey=True)
-    for ax, folder in zip(np.ravel(axes), folders):
-        results = Results(folder)
-        energy_damage_sum: float = sum(calc_energy_damage(results))
-        energy_damage_kev = energy_damage_sum / 1000
-        print("Damage energy: {:.1f} keV".format(energy_damage_kev))
-        plot_damage_energy(results, ax, units='nm')
 
+    for ax, folder in zip(np.ravel(axes), folders):
+        srim_res = Results(folder)
+        energy_damage_sum: float = sum(calc_energy_damage(srim_res))
+        energy_damage_kev = energy_damage_sum / 1000
+        print(Fore.GREEN + f"Damage energy: {energy_damage_kev:.1f} keV")
+        plot_damage_energy(srim_res, ax, units='nm')
+
+    res_folder_list: List[Union[str, Path]] = []
+    ax_list: List[plt.Axes] = []
     with ThreadPoolExecutor() as exc:
-        pass  # add folders to list, get results list?, then map jobs to folders?
+        srim_results_list = exc.map(Results, res_folder_list)
+        exc.map(plot_damage_energy, srim_results_list, ax_list)  # , units='nm')
+        # add folders to list, get results list?, then map jobs to folders?
 
     fig.suptitle('Damage Energy vs. Depth', fontsize=15)
     fig.set_size_inches((20, 6))

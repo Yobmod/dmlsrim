@@ -17,6 +17,7 @@ flake8 = "*"
 flake8-comprehensions = "*"
 pdbpp = "*"
 pipenv = "*"
+# pyinstaller = "*"
 
 [packages]
 matplotlib = "*"  # brings numpy
@@ -24,7 +25,6 @@ typing-extensions = "*"
 pillow = "*"
 pysrim = "*"
 # pysimplegui = "*"
-# pyinstaller = "*"
 # pytoml = "*"
 python-dotenv = "*"
 # boltons = "*"
@@ -33,6 +33,8 @@ python-dotenv = "*"
 colorama = "*"
 termcolor = "*"
 chempy = "*"
+pyyaml = "*"
+# returns = "*"
 
 [requires]
 python_version = "3.7"
