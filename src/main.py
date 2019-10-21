@@ -24,7 +24,7 @@ else:
 
 color_init(autoreset=True)
 
-dbpath = os.path.join(srim.__path__[0], 'data', 'elements.yaml')
+dbpath = os.path.join(srim.__path__[0], 'data', 'elements.yaml')  # type: ignore
 yaml.load(open(dbpath, "r"), Loader=yaml.FullLoader)
 
 # this via instance?

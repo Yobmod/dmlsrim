@@ -3,8 +3,9 @@ Numpy's mypy stub. Only type declarations for ndarray, the scalar hierarchy and 
 methods are provided.
 """
 
-from typing import (Any, Callable, Dict, Generic, Iterator, List, Optional, Sequence, Tuple, Type,
+from typing import (Any, Callable, Dict, Generic, Iterator, List, Optional,  Optional as Opt, Sequence, Tuple, Type,
                     TypeVar, Union, overload)
+from typing_extensions import Literal
 import abc
 from pathlib import Path
 
@@ -55,7 +56,7 @@ DtypeType = Union[dtype, type]
 
 class flatiter(Generic[_S], Iterator[_S], metaclass=abc.ABCMeta):
     coords = ...  # type: ShapeType
-    def copy(self) -> flatiter[_S]: ...
+    def copy(self) -> 'flatiter[_S]': ...
 
 
 class _ArrayLike(Generic[_S]):
@@ -79,7 +80,7 @@ class _ArrayLike(Generic[_S]):
     ndim = None      # type: int
     shape = None     # type: Tuple[int, ...]
     strides = None   # type: Tuple[int, ...]
-    base = None      # type: Optional[_ArrayLike[_S]]
+    base = None      # type: Opt[_ArrayLike[_S]]
 
     #
     # Array-like methods
@@ -89,19 +90,19 @@ class _ArrayLike(Generic[_S]):
     # have an 'out' argument, will be implemented using overload instead of with a Union
     # result. mypy is smart enough to assign the proper type (_ArrayLike[_U]) when out is present
     # but it falls back to the union when it's not.
-    def all(self, axis: AxesType = None, out: '_ArrayLike[_U]' = None,
+    def all(self, axis: Opt[AxesType] = None, out: '_ArrayLike[_U]' = None,
             keepdims: bool = False) -> Union['_ArrayLike[_U]', '_ArrayLike[bool]']: ...
 
     def any(self, axis: AxesType = None, out: '_ArrayLike[_U]' = None,
             keepdims: bool = False) -> Union['_ArrayLike[_U]', '_ArrayLike[bool]']: ...
 
-    def argmax(self, axis: int = None,
+    def argmax(self, axis: Opt[int] = None,
                out: '_ArrayLike[_U]' = None) -> Union['_ArrayLike[_U]', '_ArrayLike[int]']: ...
 
     def argmin(self, axis: int = None,
                out: '_ArrayLike[_U]' = None) -> Union['_ArrayLike[_U]', '_ArrayLike[int]']: ...
 
-    def argpartition(self, kth: Union[int, Sequence[int]], axis: Optional[int] = -1,
+    def argpartition(self, kth: Union[int, Sequence[int]], axis: Opt[int] = -1,
                      kind: str = 'introselect', order: OrderType = None) -> '_ArrayLike[int]': ...
 
     def argsort(self, axis: int = None, kind: str = 'quicksort',
@@ -222,7 +223,7 @@ class _ArrayLike(Generic[_S]):
 
     def tobytes(self, order: str = 'C') -> bytes: ...
 
-    def tofile(self, fid: object, sep: str = '',  # TODO fix fid definition (There's a bug in mypy io's namespace https://github.com/python/mypy/issues/1462)
+    def tofile(self, fid: object, sep: str = '',  # TODO fix fid definition (bug in mypy io's namespace https://github.com/python/mypy/issues/1462)
                format: str = '%s') -> None: ...
 
     def tolist(self) -> List[Any]: ...
@@ -716,6 +717,9 @@ def ones(shape: ShapeType,
 
 def ones_like(a: Any, dtype: Any = None, order: str = 'K',
               subok: bool = True) -> ndarray[Any]: ...
+
+
+def ravel(a: _ArrayLike[Any], c: Opt[Literal['C', 'F', 'A', 'K']] = None) -> _ArrayLike[Any]: ...
 
 
 def zeros(shape: ShapeType, dtype: DtypeType = float,
