@@ -7,66 +7,21 @@ import matplotlib.pyplot as plt
 from srim import Ion, Layer, Target, TRIM
 from srim.output import Results
 
-from concurrent.futures import ThreadPoolExecutor
+# from concurrent.futures import ThreadPoolExecutor
 
 from typing import Union, List
 from typing_extensions import Final
-from mytypes import floatArray, precisionLitType
+from mytypes import floatArray, precisionLitType 
 
 
 srim_executable_directory: Final = R'C:\srim'
 
-# TODO get a .csv of element data, iport and extract line as dict?
-# TODO element picker GUI
 elem_ce_dict = {'E_d': 25.0, 'lattice': 3.0, 'surface': 4.23, 'atomic_num': 58, 'atomic_mass': 140.1}
 elem_u_dict = {'E_d': 25.0, 'lattice': 3.0, 'surface': 5.42, 'atomic_num': 92, 'atomic_mass': 238.0}
 elem_th_dict = {'E_d': 25.0, 'lattice': 3.0, 'surface': 5.93, 'atomic_num': 90, 'atomic_mass': 232.0}
 elem_o_dict = {'E_d': 28.0, 'lattice': 3.0, 'surface': 2.00, 'atomic_num': 8, 'atomic_mass': 15.99}
-
-
-energy__kev_list = [100, 200, 300, 400, 500, 750, 1000, 1500, 2000, 2500, 3000, 4000, 5000]
-
-
-ion_Ni = Ion('Ni', energy=3.0e6)
-ions_He_list = [Ion('He', energy=x * 1000) for x in energy__kev_list]
-# print(ion.symbol, ion.name)
-# print(ion.energy)
-
-
-# Construct layers
-layer_Ni = Layer(
-    {'Ni': {'stoich': 1.0, 'E_d': 30.0, 'lattice': 0.0, 'surface': 3.0}},
-    density=8.9, width=20_000.0, name='Ni'
-)
-
-layer_CeO2_1um = Layer(
-    {'Ce': {'stoich': 1.0, **elem_ce_dict},
-     'O': {'stoich': 2.0, **elem_o_dict},
-     },
-    density=7.22, width=10_000.0, name='ceria'
-)
-
-layer_CeO2_2um = Layer(
-    {'Ce': {'stoich': 1.0, **elem_ce_dict},
-     'O': {'stoich': 2.0, **elem_o_dict},
-     },
-    density=7.22, width=20_000.0, name='ceria'
-)
-
-layer_CeO2_5um = Layer(
-    {'Ce': {'stoich': 1.0, **elem_ce_dict},
-     'O': {'stoich': 2.0, **elem_o_dict},
-     },
-    density=7.22, width=50_000.0, name='ceria'
-)
-
-"""
-print(layer.elements.keys())
-print(layer.width)  # angstroms
-for element, prop in layer.elements.items():
-    print(element.symbol, element.name, element.mass)
-    print(prop['stoich'], prop['E_d'], prop['lattice'], prop['surface'])
-"""
+elem_si_dict = {'E_d': 28.0, 'lattice': 3.0, 'surface': 2.00, 'atomic_num': 7, 'atomic_mass': 15.99}
+elem_ti_dict = {'E_d': 28.0, 'lattice': 3.0, 'surface': 2.00, 'atomic_num': 22, 'atomic_mass': 15.99}
 
 
 def make_element_subfolder_name(layer: Layer, ion: Ion,
@@ -133,51 +88,6 @@ def make_image_path(layer: Layer, ion: Ion,
     return outimage_directory
 
 
-# Construct a target of a single layer of Nickel
-# Initialize a TRIM calculation with given target and ion for 25 ions, quick˓→calculation
-# Specify the directory of SRIM.exe# For windows users the path will include  C://...
-# takes about 10 seconds on my laptop
-# If all went successfull you should have seen a TRIM window popup and run 25 ions!
-target_Ni = Target([layer_Ni])
-trim_Ni = TRIM(target_Ni, ion_Ni, number_ions=25, calculation=1)
-results = trim_Ni.run(srim_executable_directory)
-
-
-# os.makedirs(output_directory, exist_ok=True)
-# top_level_csv_files = Path.cwd().glob('*.csv')
-# all_csv_files = Path.cwd().rglob('*.csv')
-# from shutil import copyfile
-# copyfile(source, destination)
-data_path: Final = Path(R'.\data')
-image_path: Final = Path(R'.\images')
-data_out_dir = make_data_path(layer_Ni, ion_Ni, data_path)
-TRIM.copy_output_files(srim_executable_directory, data_out_dir)
-# results = Results(output_directory)
-
-width_list = [10_000, 20_000, 50_000]
-
-
-layer_ceria_list = [Layer(
-    {'Ce': {'stoich': 1.0, **elem_ce_dict},
-     'O': {'stoich': 2.0, **elem_o_dict},
-     },  density=7.22, width=width, name='ceria') for width in width_list]
-
-layer_list = layer_ceria_list + [layer_Ni]
-
-target_list = [Target([layer]) for layer in layer_list]
-
-results_list = []
-for ion in ions_He_list:
-    for i, target in enumerate(target_list):
-        data_out_dir = make_data_path(layer_list[i], ion, data_path)
-        trim = TRIM(target, ion, number_ions=25, calculation=1)
-        results = trim.run(srim_executable_directory)
-        results_list.append(results)
-        TRIM.copy_output_files(srim_executable_directory, data_out_dir)
-        print(f'{ion.symbol}-{ion.energy/1000}kev done')
-"""to use threading, need to generate different srim data dir for each thread? Worth it?"""
-
-
 def get_energy_damage_array(results: Results) -> np.ndarray:
     phon = results.phonons
     dx = max(phon.depth) / 1000.0  # units from pm to nm
@@ -210,21 +120,46 @@ def plot_damage_energy(results: Results, ax: plt.axis, units: precisionLitType =
 
 
 if __name__ == "__main__":
-    folders: List[Union[str, Path]] = [data_out_dir]
-    image_out_dir = make_image_path(layer_Ni, ion_Ni)
-    os.makedirs(image_out_dir, exist_ok=True)
 
-    fig, axes = plt.subplots(1, len(folders), sharex=True, sharey=True)
-    for ax, folder in zip(np.ravel(axes), folders):
-        results = Results(folder)
-        energy_damage_sum: float = sum(calc_energy_damage(results))
-        energy_damage_kev = energy_damage_sum / 1000
-        print("Damage energy: {:.1f} keV".format(energy_damage_kev))
-        plot_damage_energy(results, ax, units='nm')
+    energy__kev_list = [100, 200, 300, 400, 500, 750, 1000, 1500, 2000, 2500, 3000, 4000, 5000]
+    ions_He_list = [Ion('He', energy=x * 1000) for x in energy__kev_list]
 
-    with ThreadPoolExecutor() as exc:
-        pass  # add folders to list, get results list?, then map jobs to folders?
+    layer_CeO2_2um = Layer(
+        {'Ce': {'stoich': 1.0, **elem_ce_dict},
+         'O': {'stoich': 2.0, **elem_o_dict},
+         },
+        density=7.22, width=20_000.0, name='ceria'
+    )
 
-    fig.suptitle('Damage Energy vs. Depth', fontsize=15)
-    fig.set_size_inches((20, 6))
-    fig.savefig(os.path.join(image_out_dir, 'damagevsdepth.png'), transparent=True)
+    data_path: Final = Path(R'.\data')
+    image_path: Final = Path(R'.\images')
+
+    target = Target([layer_CeO2_2um])
+    """run SRIM on each ion energy in each layer"""
+    results_list = []
+    folders: List[Path] = []
+    for ion in ions_He_list:
+        data_out_dir = make_data_path(layer_CeO2_2um, ion, data_path)
+        folders.append(data_out_dir)
+        trim = TRIM(layer_CeO2_2um, ion, number_ions=25, calculation=1)
+        results = trim.run(srim_executable_directory)
+        results_list.append(results)
+        TRIM.copy_output_files(srim_executable_directory, data_out_dir)
+        print(f'{ion.symbol}-{ion.energy/1000}kev done')
+
+        """use SRIM data to create images"""
+
+        image_out_dir = make_image_path(layer_CeO2_2um, ion)
+        os.makedirs(image_out_dir, exist_ok=True)
+
+        fig, axes = plt.subplots(1, len(folders), sharex=True, sharey=True)
+        for ax, folder in zip(np.ravel(axes), folders):
+            results = Results(folder)
+            energy_damage_sum: float = sum(calc_energy_damage(results))
+            energy_damage_kev = energy_damage_sum / 1000
+            print("Damage energy: {:.1f} keV".format(energy_damage_kev))
+            plot_damage_energy(results, ax, units='nm')
+
+        fig.suptitle('Damage Energy vs. Depth', fontsize=15)
+        fig.set_size_inches((20, 6))
+        fig.savefig(os.path.join(image_out_dir, 'damagevsdepth.png'), transparent=True)
