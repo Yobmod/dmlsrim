@@ -5,34 +5,36 @@ verify_ssl = true
 
 [dev-packages]
 cython = "*"
-
 mypy = "*"
 pytest = "*"
 pytest-cov = "*"
 pytest-mypy = "*"
 pytest-sugar = "*"
 pytest-xdist = "*"
-
 pylama = "*"
 autopep8 = "*"
 flake8 = "*"
 flake8-comprehensions = "*"
-
 pdbpp = "*"
+pipenv = "*"
+# pyinstaller = "*"
 
 [packages]
 matplotlib = "*"  # brings numpy
 typing-extensions = "*"
 pillow = "*"
-imutils = "*"
 pysrim = "*"
 # pysimplegui = "*"
-# pyinstaller = "*"
-# pyyaml = ">=4.2"
+# pytoml = "*"
 python-dotenv = "*"
 # boltons = "*"
 # keras = "*"
 # sklearn = "*"
+colorama = "*"
+termcolor = "*"
+chempy = "*"
+pyyaml = "*"
+# returns = "*"
 
 [requires]
 python_version = "3.7"
