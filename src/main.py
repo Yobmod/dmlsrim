@@ -156,8 +156,21 @@ def calc_energy_damage(results: Results, units: precisionLitType = 'nm') -> 'flo
     energy_damage: floatArray = (phon.ions + phon.recoils) * dx  # add the arrays and multiply
     cast(floatArray, energy_damage)
     # reveal_type(energy_damage)
+    print(energy_damage)
     return energy_damage
 
+
+def save_damage_energy(results: Results, units: precisionLitType = 'nm') -> None:
+    phon = results.phonons
+    if units in ('nm', 'nano'):
+        units_str = 'nm'
+    elif units in ('a', 'A', 'angstrom', 'angstroms', 'Angstrom', 'Angstroms'):
+        units_str = 'Angstroms'
+    energy_damage = calc_energy_damage(results, units)
+    damage_table = np.ndarray([phon.depth, energy_damage / phon.num_ions])
+    print(damage_table)
+    # TODO save to csv, use units_str for header
+    
 
 def plot_damage_energy(results: Results, ax: plt.Axes, units: precisionLitType = 'nm', plot_label: str = 'Collision damage depth') -> None:
     phon = results.phonons
@@ -173,6 +186,7 @@ def plot_damage_energy(results: Results, ax: plt.Axes, units: precisionLitType =
 
 
 if __name__ == "__main__":
+
     # Construct a target of a single layer of Nickel
     # Initialize a TRIM calculation with given target and ion for 25 ions, quick˓→calculation
     # Specify the directory of SRIM.exe# For windows users the path will include  C://...
