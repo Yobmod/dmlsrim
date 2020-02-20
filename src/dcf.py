@@ -1,41 +1,59 @@
+from __future__ import annotations
+
 import os
 from pathlib import Path
-
+from datetime import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 
-from srim import Ion, Layer, Target, TRIM
+from srim import Ion, Layer, Target
+from srim.srim import TRIM
 from srim.output import Results
 
-# from concurrent.futures import ThreadPoolExecutor
-
-from typing import Union, List, Tuple
-from typing_extensions import Final
+from concurrent.futures import ProcessPoolExecutor
+from concurrent import futures
+from dataclasses import dataclass, asdict
+from typing import Iterable, Sequence, Set, Union, List, Tuple, cast, Dict
+from typing_extensions import Final, Literal
 from mytypes import floatArray, precisionLitType
 
 
-srim_executable_directory: Final = R'C:\srim'
+@dataclass
+class SrimData:
+    folder: Path  # folder the results is saved to
+    ion: Ion
+    target: Target
+    num_ions: int
+    damage_total: float
+    damage_array: Tuple[floatArray, floatArray]
 
-elem_ce_dict = {'E_d': 25.0, 'lattice': 3.0, 'surface': 4.23, 'atomic_num': 58, 'atomic_mass': 140.1}
-elem_u_dict = {'E_d': 25.0, 'lattice': 3.0, 'surface': 5.42, 'atomic_num': 92, 'atomic_mass': 238.0}
+
+@dataclass(frozen=True)
+class ElemClass:
+    atomic_num: int
+    atomic_mass: float
+    E_d: float = 25.0
+    lattice: float = 0.0
+    surface: float = 3.0
+
+    def __post_init__(self) -> None:
+        if self.E_d <= 0:
+            raise ValueError('Invalid E_d (negative)')
+        assert self.lattice >= 0
+
+
+# TODO see main.py for getting element classes. Need to convert to ElemClass or not? Use Dacite for convert via dict?
+# or inherit from it?
+elem_ce_dict = ElemClass(E_d=25.0, lattice=3.0, surface=4.23, atomic_num=58, atomic_mass=140.1)
+elem_u_dict: Dict = {'E_d': 25.0, 'lattice': 3.0, 'surface': 5.42, 'atomic_num': 92, 'atomic_mass': 238.0}
 elem_th_dict = {'E_d': 25.0, 'lattice': 3.0, 'surface': 5.93, 'atomic_num': 90, 'atomic_mass': 232.0}
 elem_o_dict = {'E_d': 28.0, 'lattice': 3.0, 'surface': 2.00, 'atomic_num': 8, 'atomic_mass': 15.99}
-elem_si_dict = {'E_d': 28.0, 'lattice': 3.0, 'surface': 2.00, 'atomic_num': 7, 'atomic_mass': 15.99}
+elem_si_dict = {'E_d': 15.0, 'lattice': 2.0, 'surface': 4.70, 'atomic_num': 14, 'atomic_mass': 28.08}
 elem_ti_dict = {'E_d': 28.0, 'lattice': 3.0, 'surface': 2.00, 'atomic_num': 22, 'atomic_mass': 15.99}
-
-{'HHI_P': 700.0, 'HHI_R': 1000.0, 'atomic_radii': 100.0, 'boil': 717.799987793,
- 'color': '#FFFF30', 'covalent_radii': 102.0, 'd_elec': 0.0, 'density': 2.06699991226,
- 'electronegativity': 2.57999992371, 'f_elec': 0.0, 'first_ionization_energy': 10.3599996567,
- 'group': 16.0, 'mass': 32.0649986267, 'melt': 388.510009766, 'name': 'Sulfur',
- 'p_elec': 4.0, 'period': 3.0, 'production': 350.0, 's_elec': 2.0,
- 'scattering_factors':
- {'a1': 6.9053, 'a2': 5.2034, 'a3': 1.4379, 'a4': 1.5863, 'b1': 1.4679, 'b2': 22.215099, 'b3': 0.2536, 'b4': 56.172001, 'c': 0.8669},
- 'specific_heat': 0.709999978542, 'symbol': 'S', 'van_der_waals_radii': 180.0,
- 'volume': 28.0034999847, 'z': 16}
 
 
 def make_element_subfolder_name(layer: Layer, ion: Ion,
-                                precision: 'precisionLitType' = 'um') -> Path:
+                                precision: precisionLitType = 'um') -> Path:
     """create a folder from layer elements and stoichiometries and ion type and energy.
     precision is units of the layer width, default = 'um' """
 
@@ -106,7 +124,7 @@ def get_energy_damage_array(results: Results) -> np.ndarray:
     return damage_array_nm
 
 
-def calc_energy_damage(results: Results, depth: int = 0, units: precisionLitType = 'nm') -> floatArray:
+def calc_energy_damage(results: Results, units: precisionLitType = 'nm', depth: int = 0) -> floatArray:
     phon = results.phonons
 
     if units in ('nm', 'nano'):
@@ -135,7 +153,7 @@ def plot_damage_energy(results: Results, ax: plt.axis, folder: Path, units: prec
     ax.legend()
 
 
-def plot_damage_energy_per_ion(results: Results, folder: Path, units: precisionLitType = 'nm') -> Tuple[np.ndarray, np.ndarray]:
+def plot_damage_energy_per_ion(results: Results, folder: Path, units: precisionLitType = 'nm') -> Tuple[floatArray, floatArray]:
     phon = results.phonons
     if units in ('nm', 'nano'):
         units_str = 'nm'
@@ -144,8 +162,8 @@ def plot_damage_energy_per_ion(results: Results, folder: Path, units: precisionL
         units_str = 'Angstroms'
         depth = phon.depth
     fig, ax = plt.subplots()
-    energy_damage = calc_energy_damage(results, 300, units)
-    energy_damage_sum: float = sum(energy_damage)
+    energy_damage: floatArray = calc_energy_damage(results, units, 300)
+    energy_damage_sum = sum(energy_damage)
     # energy_damage_kev = energy_damage_sum / 1000
 
     # ax.plot(depth, energy_damage / phon.num_ions, label='{}'.format(folder))
@@ -156,9 +174,9 @@ def plot_damage_energy_per_ion(results: Results, folder: Path, units: precisionL
     ax.legend()
     fig.suptitle('Damage Energy vs. Depth', fontsize=15)
     fig.set_size_inches((10, 6))
-    fig.savefig(os.path.join(image_out_dir, 'damagevsdepth_per_ion.png'), transparent=True)
+    fig.savefig(os.path.join(folder, 'damagevsdepth_per_ion.png'), transparent=True)
 
-    damage_depth_data = (phon.depth, energy_damage / phon.num_ions)
+    damage_depth_data = (phon.depth, cast(floatArray, energy_damage / phon.num_ions))
     return damage_depth_data
 
 
@@ -171,8 +189,8 @@ def plot_damage_energy_total(results: Results, folder: Path, units: precisionLit
         units_str = 'Angstroms'
         depth = phon.depth
     fig, ax = plt.subplots()
-    energy_damage = calc_energy_damage(results, 300, units)
-    energy_damage_sum: float = sum(energy_damage)
+    energy_damage: floatArray = calc_energy_damage(results, units, 300)
+    energy_damage_sum: float = sum(cast(Iterable[float], energy_damage))
     # energy_damage_kev = energy_damage_sum / 1000
 
     # ax.plot(depth, energy_damage / phon.num_ions, label='{}'.format(folder))
@@ -183,7 +201,7 @@ def plot_damage_energy_total(results: Results, folder: Path, units: precisionLit
     ax.legend()
     fig.suptitle('Damage Energy vs. Depth', fontsize=15)
     fig.set_size_inches((10, 6))
-    fig.savefig(os.path.join(image_out_dir, 'damagevsdepth_total.png'), transparent=True)
+    fig.savefig(os.path.join(folder, 'damagevsdepth_total.png'), transparent=True)
 
     damage_depth_data = (phon.depth, energy_damage)
     return damage_depth_data
@@ -210,52 +228,106 @@ def plot_multi_damage_energy(data: List[Tuple[np.ndarray, np.ndarray]], units: s
     fig.savefig(os.path.join(image_out_dir, 'damagevsdepth.png'), transparent=True)
 """
 
+
+def run_srim(ion: Ion,
+             target: Target,
+             data_out_dir: Path,
+             num_ions: int, srim_dir: Path) -> Results:
+    # use layer, data_path and iob to create out_dir
+    # run trim, return out_dir and result
+    # copy result to out_dir from srim_dir
+    trim = TRIM(target, ion, number_ions=num_ions, calculation=1)  # 1 million -> about 5 hours
+    results = trim.run(srim_dir)
+    TRIM.copy_output_files(srim_dir, data_out_dir)
+    print(f'{ion.symbol}-{ion.energy/1000}kev done')
+    return results
+
+
+def mung_srim(results: Results) -> float:
+    energy_damage_sum: float = sum(cast(Iterable[float], calc_energy_damage(results)))
+    # energy_damage_kev = energy_damage_sum / 1000
+    print("Damage energy: {:.1f} eV".format(energy_damage_sum))
+    # print("Damage energy: {:.1f} keV".format(energy_damage_kev))
+    return energy_damage_sum
+
+
+def plot_srim(results: Results, image_out_dir: Path) -> Tuple[floatArray, floatArray]:
+    # damage_per_ion_vs_depth = plot_damage_energy_per_ion(results, data_out_dir, units='nm')
+    damage_per_ion_vs_depth = plot_damage_energy_total(results, image_out_dir, units='nm')
+    return damage_per_ion_vs_depth
+
+
+def combined_srim(ion: Ion,
+                  target: Target,
+                  data_path: Path,
+                  num_ions: int,
+                  srim_dir: Path) -> SrimData:
+    # run ions in list against layer and datapath
+    # get out_dir and result
+    # create list of folders and list of results
+    start = datetime.now()
+    data_out_dir = make_data_path(target[0], ion, data_path)
+    image_out_dir = data_out_dir / 'images'
+    result = run_srim(ion, target, data_out_dir, num_ions, srim_dir)
+    damage_total = mung_srim(result)
+    damage_array = plot_srim(result, image_out_dir)
+    datum = SrimData(data_out_dir, ion, target, num_ions, damage_total, damage_array)
+    end = datetime.now()
+    duration = end - start
+    print(duration)
+
+    return datum
+
+
 if __name__ == "__main__":
 
-    from datetime import datetime
-    start = datetime.now()
-    energy__kev_list = [100, 200, 300, 400, 500, 750, 1000, 1500, 2000, 2500, 3000, 4000, 5000]
-    ions_He_list = [Ion('He', energy=x * 1000) for x in energy__kev_list]
+    data_path: Final[Path] = Path(R'.\data\x')
+    srim_executable_directory: Final[Path] = R'C:\srim'
+    energy_kev_list = [2000, 2500, 3000, 4000, 5000]
+
+    def create_ion_list(ion_name: Literal['H', 'He'],
+                        energy_list: Union[Sequence[int], Set[int]]) -> List[Ion]:
+        ion_list = [Ion(f'ion_name', energy=x * 1000) for x in energy_list]
+        return ion_list
+
+    ions_He_list = create_ion_list('He', energy_kev_list)
 
     layer_CeO2_2um = Layer(
-        {'Ce': {'stoich': 1.0, **elem_ce_dict},
+        {'Ce': {'stoich': 1.0, **asdict(elem_ce_dict)},
          'O': {'stoich': 2.0, **elem_o_dict},
          },
         density=7.22, width=20_000.0, name='ceria'
     )
 
-    data_path: Final = Path(R'.\data')
-    image_path: Final = Path(R'.\images')
+    layer_SiO2_10um = Layer(
+        {'Si': {'stoich': 1.0, **elem_si_dict},
+         'O': {'stoich': 2.0, **elem_o_dict},
+         },
+        density=2.65, width=100_000.0, name='silica'
+    )
 
-    target = Target([layer_CeO2_2um])
-    """run SRIM on each ion energy in each layer"""
-    results_list = []
-    folders: List[Path] = []
-    damage_data = []
-    for ion in ions_He_list:
-        data_out_dir = make_data_path(layer_CeO2_2um, ion, data_path)
-        folders.append(data_out_dir)
-        trim = TRIM(target, ion, number_ions=1_000_000, calculation=1)  # 1 million -> about 5 hours
-        results = trim.run(srim_executable_directory)
-        results_list.append(results)
-        TRIM.copy_output_files(srim_executable_directory, data_out_dir)
-        print(f'{ion.symbol}-{ion.energy/1000}kev done')
+    target = Target([layer_CeO2_2um, layer_SiO2_10um])
 
-        """use SRIM data to create images"""
-        image_out_dir = make_image_path(layer_CeO2_2um, ion)
-        os.makedirs(image_out_dir, exist_ok=True)
+    def pool_srim(ion_list: Union[Sequence[Ion], Set[Ion]],
+                  target: Target, data_path: Path, num_ions: int, srim_dir: Path) -> None:  # List[SrimData]
+        ...
 
-    # fig, axes = plt.subplots(1, len(folders), sharex=True, sharey=True)
-    # for ax, folder in zip(np.ravel(axes), folders):
-        results = Results(data_out_dir)
-        energy_damage_sum: float = sum(calc_energy_damage(results))
-        energy_damage_kev = energy_damage_sum / 1000
-        print("Damage energy: {:.1f} eV".format(energy_damage_sum))
-        # print("Damage energy: {:.1f} keV".format(energy_damage_kev))
-        damage_per_ion_vs_depth = plot_damage_energy_per_ion(results, data_out_dir, units='nm')
-        damage_data.append(damage_per_ion_vs_depth)
+    with ProcessPoolExecutor(max_workers=6) as ppexc:
+        SrimData_futures = [ppexc.submit(combined_srim,
+                                         ion,
+                                         target,
+                                         data_path,
+                                         num_ions=1_000_000,  # 1 million -> about 5 hours
+                                         srim_dir=srim_executable_directory)
+                            for ion in ions_He_list]
 
-        damage_per_ion_vs_depth = plot_damage_energy_total(results, data_out_dir, units='nm')
-        end = datetime.now()
-        duration = end - start
-        print(duration)
+        # Srimdata_futuress = ppexc.map(combined_srim,
+        # ions_He_list,
+        # repeat(target),
+        # repeat(data_path),
+        # num_ions=1_000_000)  # returns results in order done
+
+    for f in futures.as_completed(SrimData_futures):
+        print('main: result: {}'.format(f.result()))
+
+    Srim_data_list: List[SrimData] = [f.result() for f in futures.as_completed(SrimData_futures)]

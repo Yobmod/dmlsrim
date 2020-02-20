@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Tuple, Union, List, NewType  # , Any, NewType, TypeVar
+from typing import TYPE_CHECKING, Iterable, Tuple, Union, List, NewType  # , Any, NewType, TypeVar
 from typing_extensions import Literal
 from PIL import Image
 import numpy as np

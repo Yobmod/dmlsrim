@@ -1,12 +1,33 @@
+from typing import Tuple, cast
+from typing import Union
+from typing import Dict
 from typing import NamedTuple
 # from typing import Mapping, MutableMapping, Sequence, MutableSequence
-from typing_extensions import TypedDict
+from typing_extensions import TypedDict, Final
+from dataclasses import dataclass, asdict
 
 
-class TD(TypedDict, total=True):
+@dataclass
+class DC:
+    y: int
+    label: str
+
+
+class tDC(TypedDict):
+    y: int
+    label: int
+
+
+f = (5, "str")
+e: tDC = {'y': 5, 'label': 5}
+dc = DC(*f)
+
+
+class TD(TypedDict, total=False):
     x: int
     y: int
     label: str
+    a: float
 
 
 """
@@ -27,6 +48,10 @@ def test_TD(inp: TD) -> bool:
 
 my_TD: TD = {'x': 1, 'y': 2, 'label': "str"}
 res = test_TD(my_TD)
+
+d = {'a': 3.2}
+
+Tdd = d.update(**asdict(dc))
 
 
 class NT(NamedTuple):
@@ -54,3 +79,18 @@ def test_NT(inp: NT) -> bool:
 my_NT: NT = NT(1, 2, 'working')
 
 res = test_NT(my_NT)
+
+
+@dataclass
+class Point:
+    x: float
+    y: float
+
+
+@dataclass
+class Line:
+    a: Point
+    b: Point
+
+
+line = Line(Point(1, 2), Point(3, 4))

@@ -166,11 +166,11 @@ def save_damage_energy(results: Results, units: precisionLitType = 'nm') -> None
         units_str = 'nm'
     elif units in ('a', 'A', 'angstrom', 'angstroms', 'Angstrom', 'Angstroms'):
         units_str = 'Angstroms'
-    energy_damage = calc_energy_damage(results, units)
+    energy_damage = calc_energy_damage(results, units_str)
     damage_table = np.ndarray([phon.depth, energy_damage / phon.num_ions])
     print(damage_table)
     # TODO save to csv, use units_str for header
-    
+
 
 def plot_damage_energy(results: Results, ax: plt.Axes, units: precisionLitType = 'nm', plot_label: str = 'Collision damage depth') -> None:
     phon = results.phonons

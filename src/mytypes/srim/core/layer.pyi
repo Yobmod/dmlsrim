@@ -1,6 +1,7 @@
 from .material import Material
 from .utils import check_input, is_positive
 
+
 class Layer(Material):
     """ Represents a layer in target
 
@@ -39,7 +40,8 @@ class Layer(Material):
            'surface': 3.0
     }, density=3.21, width=10000.0)
     """
-    def __init__(self, elements, density, width, phase=0, name=None):
+
+    def __init__(self, elements, density, width, phase: int = 0, name=None):
         """Creation of Layer from elements, density, width, phase, and
 name"""
         self.width = width
