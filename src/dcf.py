@@ -1,21 +1,22 @@
 from __future__ import annotations
 
-import os
-from pathlib import Path
-from datetime import datetime
-import numpy as np
 import matplotlib.pyplot as plt
-
+import numpy as np
+from datetime import datetime
+from pathlib import Path
+import os
 from srim import Ion, Layer, Target
 from srim.srim import TRIM
 from srim.output import Results
-
-from concurrent.futures import ProcessPoolExecutor
-from concurrent import futures
+from concurrent.futures import ThreadPoolExecutor, as_completed  # , ProcessPoolExecutor
+import multiprocessing as mp
+from time import sleep
 from dataclasses import dataclass, asdict
 from typing import Iterable, Sequence, Set, Union, List, Tuple, cast, Dict
 from typing_extensions import Final, Literal
 from mytypes import floatArray, precisionLitType
+from matplotlib import use
+use('Agg')  # NoQa
 
 
 @dataclass
@@ -26,6 +27,9 @@ class SrimData:
     num_ions: int
     damage_total: float
     damage_array: Tuple[floatArray, floatArray]
+
+    def __post_init__(self) -> None:
+        self.layers: List[Layer] = self.target.layers
 
 
 @dataclass(frozen=True)
@@ -47,7 +51,7 @@ class ElemClass:
 elem_ce_dict = ElemClass(E_d=25.0, lattice=3.0, surface=4.23, atomic_num=58, atomic_mass=140.1)
 elem_u_dict: Dict = {'E_d': 25.0, 'lattice': 3.0, 'surface': 5.42, 'atomic_num': 92, 'atomic_mass': 238.0}
 elem_th_dict = {'E_d': 25.0, 'lattice': 3.0, 'surface': 5.93, 'atomic_num': 90, 'atomic_mass': 232.0}
-elem_o_dict = {'E_d': 28.0, 'lattice': 3.0, 'surface': 2.00, 'atomic_num': 8, 'atomic_mass': 15.99}
+elem_o_dict = ElemClass(E_d=28.0, lattice=3.0, surface=2.00, atomic_num=8, atomic_mass=15.99)
 elem_si_dict = {'E_d': 15.0, 'lattice': 2.0, 'surface': 4.70, 'atomic_num': 14, 'atomic_mass': 28.08}
 elem_ti_dict = {'E_d': 28.0, 'lattice': 3.0, 'surface': 2.00, 'atomic_num': 22, 'atomic_mass': 15.99}
 
@@ -87,7 +91,7 @@ def make_element_subfolder_name(layer: Layer, ion: Ion,
         layer_width = layer.width
 
     data_subfolder_name = Path(f"{element_list_str}_{layer_width}_{ion.symbol}@{ion_energy_kev}")
-    print(data_subfolder_name)
+    # print(data_subfolder_name)
     return data_subfolder_name
 
 
@@ -125,17 +129,23 @@ def get_energy_damage_array(results: Results) -> np.ndarray:
 
 
 def calc_energy_damage(results: Results, units: precisionLitType = 'nm', depth: int = 0) -> floatArray:
+    """<depth> given in <units>"""
     phon = results.phonons
 
+    # TODO is this needed? use depth if given, and if not, use phonon.depth.max. Units matter?
     if units in ('nm', 'nano'):
-        dx = max(phon.depth) / 100.0  # units from pm to nm
+        dx = int(max(phon.depth) / 100.0)  # units from pm to nm
     elif units in ('a', 'A', 'angstrom', 'angstroms', 'Angstrom', 'Angstroms'):
-        dx = max(phon.depth) / 100.0  # units from pm to Angstroms
+        dx = int(max(phon.depth) / 100.0)  # units from pm to Angstroms
+    else:
+        raise ValueError
 
-    # if depth != 0:
-        # dx = depth
+    print(f"phonon depth is int or array? {dx}")
+    if depth > 0:
+        dx = depth
+
     energy_damage: floatArray = (phon.ions + phon.recoils) * dx  # add the arrays and multiply
-    return energy_damage
+    return energy_damage  # up to depth if given otherwise all
 
 
 def plot_damage_energy(results: Results, ax: plt.axis, folder: Path, units: precisionLitType = 'nm') -> None:
@@ -243,11 +253,13 @@ def run_srim(ion: Ion,
     return results
 
 
-def mung_srim(results: Results) -> float:
+def mung_srim(results: Results, depth: int = 0) -> float:
     energy_damage_sum: float = sum(cast(Iterable[float], calc_energy_damage(results)))
     # energy_damage_kev = energy_damage_sum / 1000
     print("Damage energy: {:.1f} eV".format(energy_damage_sum))
     # print("Damage energy: {:.1f} keV".format(energy_damage_kev))
+    # TODO tuple total damage	max damage	depth of max / nm damage up to depth
+
     return energy_damage_sum
 
 
@@ -266,53 +278,38 @@ def combined_srim(ion: Ion,
     # get out_dir and result
     # create list of folders and list of results
     start = datetime.now()
-    data_out_dir = make_data_path(target[0], ion, data_path)
-    image_out_dir = data_out_dir / 'images'
+    # pid = os.getpid() if using processpool
+    data_out_dir = make_data_path(target.layers[0], ion, data_path)
+    image_out_dir = data_out_dir  # make_image_path(target.layers[0], ion, data_path)
+    print(f"{data_out_dir.name} started")  # using PID {pid}")
+
     result = run_srim(ion, target, data_out_dir, num_ions, srim_dir)
     damage_total = mung_srim(result)
     damage_array = plot_srim(result, image_out_dir)
     datum = SrimData(data_out_dir, ion, target, num_ions, damage_total, damage_array)
+
     end = datetime.now()
     duration = end - start
-    print(duration)
+    print(f"{data_out_dir.name} done in {str(duration).split('.', 2)[0]}")  # " using PID {pid}")
 
     return datum
 
 
-if __name__ == "__main__":
+def create_ion_list(ion_name: Literal['H', 'He', 'Li'],
+                    energy_list: Union[Sequence[int], Set[int]],
+                    units: Literal['ev', 'kev', 'mev']
+                    ) -> List[Ion]:
+    ion_list = [Ion(f'{ion_name}', energy=x * 1000) for x in energy_list]
+    return ion_list
 
-    data_path: Final[Path] = Path(R'.\data\x')
-    srim_executable_directory: Final[Path] = R'C:\srim'
-    energy_kev_list = [2000, 2500, 3000, 4000, 5000]
 
-    def create_ion_list(ion_name: Literal['H', 'He'],
-                        energy_list: Union[Sequence[int], Set[int]]) -> List[Ion]:
-        ion_list = [Ion(f'ion_name', energy=x * 1000) for x in energy_list]
-        return ion_list
+def pool_srim(ions: Union[Sequence[Ion], Set[Ion]],
+              target: Target, data_path: Path, num_ions: int, srim_dir: Path) -> List[SrimData]:  # List[SrimData]
 
-    ions_He_list = create_ion_list('He', energy_kev_list)
+    # with ProcessPoolExecutor(max_workers=mp.cpu_count() - 1) as ppexc:
+    with ThreadPoolExecutor(max_workers=mp.cpu_count() * 5) as ppexc:
 
-    layer_CeO2_2um = Layer(
-        {'Ce': {'stoich': 1.0, **asdict(elem_ce_dict)},
-         'O': {'stoich': 2.0, **elem_o_dict},
-         },
-        density=7.22, width=20_000.0, name='ceria'
-    )
-
-    layer_SiO2_10um = Layer(
-        {'Si': {'stoich': 1.0, **elem_si_dict},
-         'O': {'stoich': 2.0, **elem_o_dict},
-         },
-        density=2.65, width=100_000.0, name='silica'
-    )
-
-    target = Target([layer_CeO2_2um, layer_SiO2_10um])
-
-    def pool_srim(ion_list: Union[Sequence[Ion], Set[Ion]],
-                  target: Target, data_path: Path, num_ions: int, srim_dir: Path) -> None:  # List[SrimData]
-        ...
-
-    with ProcessPoolExecutor(max_workers=6) as ppexc:
+        """# using submit() and list comprehension
         SrimData_futures = [ppexc.submit(combined_srim,
                                          ion,
                                          target,
@@ -320,14 +317,64 @@ if __name__ == "__main__":
                                          num_ions=1_000_000,  # 1 million -> about 5 hours
                                          srim_dir=srim_executable_directory)
                             for ion in ions_He_list]
+        """
 
-        # Srimdata_futuress = ppexc.map(combined_srim,
-        # ions_He_list,
-        # repeat(target),
-        # repeat(data_path),
-        # num_ions=1_000_000)  # returns results in order done
+        SrimData_futures = []
+        for ion in ions:
+            res = ppexc.submit(combined_srim,
+                               ion,
+                               target,
+                               data_path,
+                               num_ions,  # 1 million -> about 5 hours
+                               srim_dir)
+            sleep(1)
+            SrimData_futures.append(res)
 
-    for f in futures.as_completed(SrimData_futures):
-        print('main: result: {}'.format(f.result()))
+        """
+        # alternate using map() and repeat().  # returns results in order done
+        SrimData_futures = ppexc.map(combined_srim,
+                                     [Ion('He', energy=1000000), Ion('He', energy=2000000)],
+                                     repeat(target),
+                                     repeat(data_path),
+                                     repeat(1_000_000),  # 1 million -> about 5 hours
+                                     repeat(srim_executable_directory))
+        """
 
-    Srim_data_list: List[SrimData] = [f.result() for f in futures.as_completed(SrimData_futures)]
+    Srim_data_list: List[SrimData] = [f.result() for f in as_completed(SrimData_futures)]
+
+    print(f"{len(Srim_data_list)} jobs done")
+    return Srim_data_list
+
+
+if __name__ == "__main__":
+
+    # set path to save data
+    data_path: Final[Path] = Path(R'.\data\uo2pure')
+
+    # poin to srim exec
+    srim_executable_directory: Final[Path] = Path(R'C:\srim')
+
+    # create list of ions from list of energies in keV
+    energy_kev_list = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
+                       1250, 1500, 1750, 2000, 2500, 3000, 4000, 5000]
+    ions_He_list = create_ion_list('He', energy_kev_list, units='kev')
+
+    # create target from list of layers
+    layer_UO2_2um = Layer(
+        {'U': {'stoich': 1.0, **elem_u_dict},
+         'O': {'stoich': 2.0, **asdict(elem_o_dict)},
+         },
+        density=7.22, width=100_000.0, name='urania'
+    )
+
+    layer_SiO2_10um = Layer(
+        {'Si': {'stoich': 1.0, **elem_si_dict},
+         'O': {'stoich': 2.0, **asdict(elem_o_dict)},
+         },
+        density=2.65, width=100_000.0, name='silica'
+    )
+
+    target = Target([layer_UO2_2um])
+
+    data_list = pool_srim(ions_He_list, target, data_path,
+                          num_ions=1000_000, srim_dir=srim_executable_directory)
