@@ -7,12 +7,6 @@ from typing_extensions import TypedDict, Final
 from dataclasses import dataclass, asdict
 
 
-@dataclass
-class DC:
-    y: int
-    label: str
-
-
 class tDC(TypedDict):
     y: int
     label: int
@@ -20,7 +14,25 @@ class tDC(TypedDict):
 
 f = (5, "str")
 e: tDC = {'y': 5, 'label': 5}
+
+
+@dataclass
+class DC:
+    y: int
+    label: str
+
+    def as_dict(self) -> Dict[str, Union[str, int]]:
+        # narrow str, Any to declated dtypes
+        return asdict(self)
+
+    def as_typdict(self) -> tDC:
+        ad: tDC = tDC(self.as_dict)
+        return ad
+
+
 dc = DC(*f)
+my_dc = DC(2, "red")
+dc_todict = my_dc.as_typdict()
 
 
 class TD(TypedDict, total=False):

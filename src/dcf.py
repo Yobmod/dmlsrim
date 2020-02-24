@@ -45,11 +45,18 @@ class ElemClass:
             raise ValueError('Invalid E_d (negative)')
         assert self.lattice >= 0
 
+    def as_dict(self) -> Dict[str, float]:
+        # narrow str, Any to declared dtypes
+        return asdict(self)
+
+    # def as_typdict(self) -> 'ElemTD':
+        # return asdict(self)
+
 
 # TODO see main.py for getting element classes. Need to convert to ElemClass or not? Use Dacite for convert via dict?
 # or inherit from it?
 elem_ce_dict = ElemClass(E_d=25.0, lattice=3.0, surface=4.23, atomic_num=58, atomic_mass=140.1)
-elem_u_dict: Dict = {'E_d': 25.0, 'lattice': 3.0, 'surface': 5.42, 'atomic_num': 92, 'atomic_mass': 238.0}
+elem_u_dict = {'E_d': 25.0, 'lattice': 3.0, 'surface': 5.42, 'atomic_num': 92, 'atomic_mass': 238.0}
 elem_th_dict = {'E_d': 25.0, 'lattice': 3.0, 'surface': 5.93, 'atomic_num': 90, 'atomic_mass': 232.0}
 elem_o_dict = ElemClass(E_d=28.0, lattice=3.0, surface=2.00, atomic_num=8, atomic_mass=15.99)
 elem_si_dict = {'E_d': 15.0, 'lattice': 2.0, 'surface': 4.70, 'atomic_num': 14, 'atomic_mass': 28.08}
