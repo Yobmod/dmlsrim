@@ -47,6 +47,7 @@ class ElemClass:
 
     def as_dict(self) -> Dict[str, float]:
         # narrow str, Any to declared dtypes
+        # get types from self.__annotation__ and make union in another function?
         return asdict(self)
 
     # def as_typdict(self) -> 'ElemTD':
