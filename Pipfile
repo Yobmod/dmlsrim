@@ -36,6 +36,7 @@ chempy = "*"
 pyyaml = "*"
 # returns = "*"
 dacite = "*"
+safety = "*"
 
 [requires]
 python_version = "3.7"

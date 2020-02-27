@@ -25,6 +25,7 @@ pyyaml = "*"
 # returns = "*"
 typer = "*"
 dacite = "*"
+safety = "^1.8.5"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
