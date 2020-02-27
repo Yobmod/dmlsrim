@@ -1,0 +1,47 @@
+[tool.poetry]
+name = "dmlsrim"
+version = "0.1.0"
+description = ""
+authors = ["yobmod <yobmod@gmail.com>"]
+repository = "https://github.com/Yobmod/dmlsrim"
+# venv = r"C:\Users\Customer\AppData\Local\pypoetry\Cache\virtualenvs\dmlsrim-7DeZLsbd-py3.7\Scripts\python.exe"
+
+[tool.poetry.dependencies]
+python = "^3.7"
+matplotlib = "*"  # brings numpy
+typing-extensions = "*"
+pillow = "*"
+pysrim = "*"
+# pysimplegui = "*"
+# pytoml = "*"
+python-dotenv = "*"
+# boltons = "*"
+# keras = "*"
+# sklearn = "*"
+colorama = "*"
+termcolor = "*"
+chempy = "*"
+pyyaml = "*"
+# returns = "*"
+typer = "*"
+dacite = "*"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+cython = "*"
+mypy = "*"
+pytest-cov = "*"
+pytest-mypy = "*"
+pytest-sugar = "*"
+pytest-xdist = "*"
+pylama = "*"
+autopep8 = "*"
+flake8 = "*"
+flake8-comprehensions = "*"
+pdbpp = "*"
+# pyinstaller = "*"
+black = "^19.10b0"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
