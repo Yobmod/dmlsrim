@@ -1,5 +1,6 @@
 {
-    "python.pythonPath": "C:\\Users\\Customer\\AppData\\Local\\pypoetry\\Cache\\virtualenvs\\dmlsrim-7DeZLsbd-py3.7\\Scripts\\python.exe",
+    "python.pythonPath": "C:\\Users\\laventin.LANCS\\AppData\\Local\\pypoetry\\Cache\\virtualenvs\\dmlsrim-7DeZLsbd-py3.7",
+    // "C:\\Users\\Customer\\AppData\\Local\\pypoetry\\Cache\\virtualenvs\\dmlsrim-7DeZLsbd-py3.7\\Scripts\\python.exe",
     "python.autoComplete.extraPaths": [
         ".",
         ".\\src",
@@ -14,6 +15,6 @@
     "python.testing.pytestEnabled": true,
     "python.testing.unittestEnabled": false,
     "python.testing.nosetestsEnabled": false,
-    "python.formatting.provider": "black",
+    "python.formatting.provider": "autopep8",
     "editor.formatOnSave": true,
 }

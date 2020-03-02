@@ -23,12 +23,13 @@ termcolor = "*"
 chempy = "*"
 pyyaml = "*"
 # returns = "*"
-typer = "*"
+typer = {extras = ["all"], version = "^0.0.8"}
 dacite = "*"
-safety = "^1.8.5"
+fastapi = {extras = ["all"], version = "^0.52.0"}
+dill = "^0.3.1"
 
 [tool.poetry.dev-dependencies]
-pytest = "^5.2"
+pytest = "*"
 cython = "*"
 mypy = "*"
 pytest-cov = "*"
@@ -41,7 +42,8 @@ flake8 = "*"
 flake8-comprehensions = "*"
 pdbpp = "*"
 # pyinstaller = "*"
-black = "^19.10b0"
+safety = "*"
+
 
 [build-system]
 requires = ["poetry>=0.12"]

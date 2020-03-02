@@ -62,6 +62,6 @@ if __name__ == "__main__":
         ions_He_list,
         target,
         data_path,
-        num_ions=1000_000,
+        num_ions=1_000_000,
         srim_dir=srim_executable_directory,
     )

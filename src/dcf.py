@@ -8,7 +8,7 @@ import os
 from srim import Ion, Layer, Target
 from srim.srim import TRIM
 from srim.output import Results
-from concurrent.futures import ThreadPoolExecutor, as_completed  # , ProcessPoolExecutor
+from concurrent.futures import as_completed, ProcessPoolExecutor
 import multiprocessing as mp
 from time import sleep
 from dataclasses import dataclass, asdict
@@ -130,25 +130,24 @@ def make_image_path(layer: Layer, ion: Ion,
 
 def get_energy_damage_array(results: Results) -> np.ndarray:
     phon = results.phonons
-    dx = max(phon.depth) / 1000.0  # units from pm to nm
+    dx = max(phon.depth) / 100.0  # ratio for units from pm to nm
     energy_damage = (phon.ions + phon.recoils) * dx
     damage_array_nm = np.array(phon.depth / 1000, energy_damage / phon.num_ions)
     return damage_array_nm
 
 
-def calc_energy_damage(results: Results, units: precisionLitType = 'nm', depth: int = 0) -> floatArray:
+def calc_energy_damage(results: Results, units: precisionLitType = 'A', depth: int = 0) -> floatArray:
     """<depth> given in <units>"""
     phon = results.phonons
-
+    # phon.depth is array of floats from 1000 A (0.1 nm) to target depth in A
     # TODO is this needed? use depth if given, and if not, use phonon.depth.max. Units matter?
     if units in ('nm', 'nano'):
-        dx = int(max(phon.depth) / 100.0)  # units from pm to nm
+        dx = int(max(phon.depth) / 100.0)  # ratio for units from pm to nm
     elif units in ('a', 'A', 'angstrom', 'angstroms', 'Angstrom', 'Angstroms'):
-        dx = int(max(phon.depth) / 100.0)  # units from pm to Angstroms
+        dx = int(max(phon.depth) / 1000.0)  # ratio for units from pm to A
     else:
         raise ValueError
 
-    print(f"phonon depth is int or array? {dx}")
     if depth > 0:
         dx = depth
 
@@ -286,10 +285,10 @@ def combined_srim(ion: Ion,
     # get out_dir and result
     # create list of folders and list of results
     start = datetime.now()
-    # pid = os.getpid() if using processpool
+    pid = os.getpid()  # if using processpool
     data_out_dir = make_data_path(target.layers[0], ion, data_path)
     image_out_dir = data_out_dir  # make_image_path(target.layers[0], ion, data_path)
-    print(f"{data_out_dir.name} started")  # using PID {pid}")
+    print(f"{data_out_dir.name} started) using PID {pid}")
 
     result = run_srim(ion, target, data_out_dir, num_ions, srim_dir)
     damage_total = mung_srim(result)
@@ -315,7 +314,7 @@ def pool_srim(ions: Union[Sequence[Ion], Set[Ion]],
               target: Target, data_path: Path, num_ions: int, srim_dir: Path) -> List[SrimData]:  # List[SrimData]
 
     # with ProcessPoolExecutor(max_workers=mp.cpu_count() - 1) as ppexc:
-    with ThreadPoolExecutor(max_workers=mp.cpu_count() * 5) as ppexc:
+    with ProcessPoolExecutor(max_workers=mp.cpu_count() * 5) as ppexc:
 
         """# using submit() and list comprehension
         SrimData_futures = [ppexc.submit(combined_srim,
