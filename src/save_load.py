@@ -39,7 +39,8 @@ class Test():
 
 testy = Test(name="try", content=elem_ce_dict)
 
-# pickle works for nexted class instances
+# pickle keeps methods and works for nested class instances
+# if you change something on the instance, is it saved?
 testy_pckl = pickle.dumps(testy)
 print(f"PICKLE {str(testy_pckl)}")
 
@@ -47,6 +48,8 @@ testy_unpckl = pickle.loads(testy_pckl)
 print(f"UNPICKLE {testy_unpckl}")
 testy_unpckl.content.as_dict()
 
+# use asdict to convert data to json string,
+# #then rehydrate the a class instance with the unpacked json.loads
 testy_json = json.dumps(asdict(testy))
 print(f"JSON {testy_json}")
 testy_unjson = json.loads(testy_json)
