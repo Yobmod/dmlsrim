@@ -22,8 +22,9 @@ if repo.is_dirty():
     repo.git.add(update=True)
     if repo.untracked_files:
         print(f"Adding files: {repo.untracked_files}")  # list of filename strings that have not been added
+        repo.index.add(repo.untracked_files)
     update_pending = True
-    # repo.index.add(repo.untracked_files)
+
 else:
     update_pending = False
 
