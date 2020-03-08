@@ -18,9 +18,10 @@ username = os.getenv("GIT_USERNAME")  # or None
 password = os.getenv("GIT_PASSWORD")  # or None
 
 
-if repo.untracked_files or repo.is_dirty():
+if repo.is_dirty():
     repo.git.add(update=True)
-    print(f"Adding files: {repo.untracked_files}")  # list of filename strings that have not been added
+    if repo.untracked_files:
+        print(f"Adding files: {repo.untracked_files}")  # list of filename strings that have not been added
     update_pending = True
     # repo.index.add(repo.untracked_files)
 else:
