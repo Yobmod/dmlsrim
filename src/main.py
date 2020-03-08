@@ -14,6 +14,7 @@ import srim
 import yaml
 from srim.core import elementdb, element
 
+import typing as t
 from typing import Union, List, cast
 from mytypes import floatArray, precisionLitType
 
@@ -163,12 +164,13 @@ def calc_energy_damage(results: Results, units: precisionLitType = 'nm') -> 'flo
 def save_damage_energy(results: Results, units: precisionLitType = 'nm') -> None:
     phon = results.phonons
     if units in ('nm', 'nano'):
-        units_str = 'nm'
+        units_str: precisionLitType = 'nm'
     elif units in ('a', 'A', 'angstrom', 'angstroms', 'Angstrom', 'Angstroms'):
-        units_str = 'Angstroms'
+        units_str = 'A'
     energy_damage = calc_energy_damage(results, units_str)
-    damage_table = np.ndarray([phon.depth, energy_damage / phon.num_ions])
+    damage_table: floatArray = np.array([[phon.depth], [energy_damage / phon.num_ions]])
     print(damage_table)
+    print(f"{damage_table.shape}")
     # TODO save to csv, use units_str for header
 
 
@@ -240,7 +242,7 @@ if __name__ == "__main__":
 
     for ax, folder in zip(np.ravel(axes), folders):
         srim_res = Results(folder)
-        energy_damage_sum: float = sum(calc_energy_damage(srim_res))
+        energy_damage_sum: float = sum(cast(t.Iterable[float], calc_energy_damage(srim_res)))
         energy_damage_kev = energy_damage_sum / 1000
         print(Fore.GREEN + f"Damage energy: {energy_damage_kev:.1f} keV")
         plot_damage_energy(srim_res, ax, units='nm')

@@ -723,7 +723,7 @@ def ravel(a: _ArrayLike[Any], c: Opt[Literal['C', 'F', 'A', 'K']] = None) -> _Ar
 
 
 def zeros(shape: ShapeType, dtype: DtypeType = float,
-          order: str = 'C') -> ndarray[Any]: ...
+          order: str = 'C') -> ndarray[float]: ...
 
 
 def zeros_like(a: Any, dtype: Any = None, order: str = 'K',

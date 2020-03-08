@@ -11,7 +11,9 @@ from srim.output import Results
 from concurrent.futures import as_completed, ProcessPoolExecutor
 import multiprocessing as mp
 from time import sleep
-from dataclasses import dataclass, asdict
+from dataclasses import asdict
+from pydantic.dataclasses import dataclass
+
 from typing import Iterable, Sequence, Set, Union, List, Tuple, cast, Dict
 from typing_extensions import Final, Literal
 from mytypes import floatArray, precisionLitType
@@ -128,7 +130,7 @@ def make_image_path(layer: Layer, ion: Ion,
     return outimage_directory
 
 
-def get_energy_damage_array(results: Results) -> np.ndarray:
+def get_energy_damage_array(results: Results) -> np.ndarray[float]:
     phon = results.phonons
     dx = max(phon.depth) / 100.0  # ratio for units from pm to nm
     energy_damage = (phon.ions + phon.recoils) * dx
@@ -197,7 +199,7 @@ def plot_damage_energy_per_ion(results: Results, folder: Path, units: precisionL
     return damage_depth_data
 
 
-def plot_damage_energy_total(results: Results, folder: Path, units: precisionLitType = 'nm') -> Tuple[np.ndarray, np.ndarray]:
+def plot_damage_energy_total(results: Results, folder: Path, units: precisionLitType = 'nm') -> Tuple[np.ndarray[float], np.ndarray[float]]:
     phon = results.phonons
     if units in ('nm', 'nano'):
         units_str = 'nm'

@@ -1,4 +1,5 @@
 *.env
+*.lock
 data/
 .mypy_cache/
 .pytest_cache/
