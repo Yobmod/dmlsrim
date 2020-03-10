@@ -5,13 +5,13 @@ import numpy as np
 from datetime import datetime
 from pathlib import Path
 import os
-from srim import Ion, Layer, Target
+from srim import Ion, Layer, Target, output
 from srim.srim import TRIM
 from srim.output import Results
 from concurrent.futures import as_completed, ProcessPoolExecutor
 import multiprocessing as mp
 from time import sleep
-from dataclasses import asdict
+from dataclasses import asdict, dataclass as dc
 from pydantic.dataclasses import dataclass
 
 from typing import Iterable, Sequence, Set, Union, List, Tuple, cast, Dict
@@ -28,14 +28,37 @@ class PydanticConfig:
 @dataclass(config=PydanticConfig)
 class SrimData:
     folder: Path  # folder the results is saved to
-    ion: Ion
-    target: Target
-    num_ions: int
-    damage_total: float
-    damage_array: Tuple[floatArray, floatArray]
+    ion: Ion = None
+    target: Target = None
+    #num_ions: int
+    #damage_total: float
+    #damage_array: Tuple[floatArray, floatArray]
 
     def __post_init__(self) -> None:
-        self.layers: List[Layer] = self.target.layers
+
+        ...
+
+    def __post_init_post_parse__(self) -> None:
+        self.results = Results(self.folder)
+        import re
+
+        if not self.ion:
+            self.ion = self.results.ioniz.ion
+        self.num_ions: int = self.results.ioniz.num_ions
+
+        if not self.target:
+            with open(R".\data\ceria_on_silica\ceria_2um_He@400keV\tdata.txt", 'r') as f:
+                f.read()
+                match_target = re.search(r'(?<=====\r\n)Layer\s+\d+\s+:.*?(?=====)', f.read(), re.DOTALL)
+                if match_target:
+                    print(match_target.group(0))
+                else:
+                    print("target not found")
+                # out = output.SRIM_Output()
+                # output.SRIM_Output._read_target(out, f.read())
+
+            # self.target = Target.
+        # self.layers: List[Layer] = self.target.layers
 
 
 class ElemTD(TypedDict):
@@ -314,7 +337,7 @@ def combined_srim(ion: Ion,
     result = run_srim(ion, target, data_out_dir, num_ions, srim_dir)
     damage_total = mung_srim(result)
     damage_array = plot_srim(result, image_out_dir)
-    datum = SrimData(data_out_dir, ion, target, num_ions, damage_total, damage_array)
+    datum = "xxx"  # SrimData(data_out_dir, ion, target, num_ions, damage_total, damage_array)
 
     end = datetime.now()
     duration = end - start
@@ -376,33 +399,8 @@ def pool_srim(ions: Union[Sequence[Ion], Set[Ion]],
 
 if __name__ == "__main__":
 
-    # set path to save data
-    data_path: Final[Path] = Path(R'.\data\uo2pure')
-
-    # poin to srim exec
-    srim_executable_directory: Final[Path] = Path(R'C:\srim')
-
-    # create list of ions from list of energies in keV
-    energy_kev_list = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
-                       1250, 1500, 1750, 2000, 2500, 3000, 4000, 5000]
-    ions_He_list = create_ion_list('He', energy_kev_list, units='kev')
-
-    # create target from list of layers
-    layer_UO2_2um = Layer(
-        {'U': {'stoich': 1.0, **elem_u_dict},
-         'O': {'stoich': 2.0, **asdict(elem_o_dict)},
-         },
-        density=7.22, width=100_000.0, name='urania'
-    )
-
-    layer_SiO2_10um = Layer(
-        {'Si': {'stoich': 1.0, **elem_si_dict},
-         'O': {'stoich': 2.0, **asdict(elem_o_dict)},
-         },
-        density=2.65, width=100_000.0, name='silica'
-    )
-
-    target = Target([layer_UO2_2um])
-
-    data_list = pool_srim(ions_He_list, target, data_path,
-                          num_ions=1000_000, srim_dir=srim_executable_directory)
+    loaded_data = SrimData(Path(R".\data\ceria_on_silica\ceria_2um_He@400keV"))
+    try:
+        print(loaded_data.results.ioniz.target)
+    except Exception:
+        pass
