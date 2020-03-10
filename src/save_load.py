@@ -1,17 +1,42 @@
+from dacite import from_dict
 from dcf import elem_ce_dict, ElemClass
 
 from dataclasses import dataclass, asdict
 import pickle
 import json
+# import ujson as json
 import dill
+import toml
+
+from typing import Dict, Any
+
+"""
+json/toml:
+    ✘ need to use dataclass.asdict()
+    ✔ readable
+    ✘ need to rehydrate dataclass (eg with Dacite)
+pickle/dill:
+    ✔ direct from dataclass (or any object)
+    ✔ remembers methods
+    ✘ not-readable
+sqlite:
+    ???
+"""
 
 print(f"CLASS {elem_ce_dict}")
 
 print(f"DICT {elem_ce_dict.as_dict()}")
 
 # elem_ce_json = json.dumps(elem_ce_dict) fails!
-elem_ce_json = json.dumps(elem_ce_dict.as_dict())
+elem_ce_json = json.dumps(elem_ce_dict.as_typdict())
+r = elem_ce_dict.as_typdict()['atomic_mass']
 print(f"JSON {elem_ce_json}")
+
+
+# elem_ce_toml2 = toml.dumps(elem_ce_dict) fails!
+elem_ce_toml = toml.dumps(elem_ce_dict.as_dict())
+print(f"TOML {elem_ce_toml}")
+
 
 # pickle keeps methods after unpickling
 elem_ce_pckl = pickle.dumps(elem_ce_dict)
@@ -52,7 +77,9 @@ testy_unpckl.content.as_dict()
 # #then rehydrate the a class instance with the unpacked json.loads
 testy_json = json.dumps(asdict(testy))
 print(f"JSON {testy_json}")
-testy_unjson = json.loads(testy_json)
+testy_unjson: Dict[str, Any] = json.loads(testy_json)
 
 t2 = Test(**testy_unjson)
 print(f"REHYDRATED_JSON {t2}")
+t3 = from_dict(Test, testy_unjson)
+print(f"REHYDRATED_JSON_DACITE {t3}")

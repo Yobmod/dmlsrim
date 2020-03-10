@@ -15,13 +15,17 @@ from dataclasses import asdict
 from pydantic.dataclasses import dataclass
 
 from typing import Iterable, Sequence, Set, Union, List, Tuple, cast, Dict
-from typing_extensions import Final, Literal
+from typing_extensions import Final, Literal, TypedDict
 from mytypes import floatArray, precisionLitType
 from matplotlib import use
 use('Agg')  # NoQa
 
 
-@dataclass
+class PydanticConfig:
+    arbitrary_types_allowed = True
+
+
+@dataclass(config=PydanticConfig)
 class SrimData:
     folder: Path  # folder the results is saved to
     ion: Ion
@@ -32,6 +36,14 @@ class SrimData:
 
     def __post_init__(self) -> None:
         self.layers: List[Layer] = self.target.layers
+
+
+class ElemTD(TypedDict):
+    atomic_num: int
+    atomic_mass: float
+    E_d: float
+    lattice: float
+    surface: float
 
 
 @dataclass(frozen=True)
@@ -52,8 +64,15 @@ class ElemClass:
         # get types from self.__annotation__ and make union in another function?
         return asdict(self)
 
-    # def as_typdict(self) -> 'ElemTD':
-        # return asdict(self)
+    def as_typdict(self) -> ElemTD:
+        #dic = {str(k): float(v) for k, v in asdict(self).items()}
+        #ret: ElemTD = dic
+        #ret = cast(ElemTD, asdict(self))
+        return ElemTD(atomic_num=self.atomic_num,
+                      atomic_mass=self.atomic_mass,
+                      E_d=self.E_d,
+                      lattice=self.lattice,
+                      surface=self.surface)
 
 
 # TODO see main.py for getting element classes. Need to convert to ElemClass or not? Use Dacite for convert via dict?

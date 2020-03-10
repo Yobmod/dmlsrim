@@ -29,6 +29,7 @@ typer = {extras = ["all"], version = "*"}
 dacite = "*"
 fastapi = {extras = ["all"], version = "*"}
 dill = "*"
+toml = "*"
 
 [tool.poetry.dev-dependencies]
 pytest = "*"
@@ -46,7 +47,7 @@ pdbpp = "*"
 # pyinstaller = "*"
 safety = "*"
 black = "^19.10b0"
-gitpython = "^3.1.0"
+gitpython = "*"
 
 
 [build-system]
