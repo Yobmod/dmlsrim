@@ -49,7 +49,11 @@ class SrimData:
         if not self.target:
             with open(R".\data\ceria_on_silica\ceria_2um_He@400keV\tdata.txt", 'r') as f:
                 f.read()
+                """===============Target material =======================
+                Layer 1 """
                 match_target = re.search(r'(?<=====\r\n)Layer\s+\d+\s+:.*?(?=====)', f.read(), re.DOTALL)
+                #match_target = re.search(r'(?<=====\r\n)Layer\s+\d+\s+:.*?(?=====)', f.read(), re.DOTALL)
+
                 if match_target:
                     print(match_target.group(0))
                 else:
@@ -401,6 +405,6 @@ if __name__ == "__main__":
 
     loaded_data = SrimData(Path(R".\data\ceria_on_silica\ceria_2um_He@400keV"))
     try:
-        print(loaded_data.results.ioniz.target)
+        print(loaded_data.results.ioniz)
     except Exception:
         pass

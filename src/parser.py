@@ -150,7 +150,7 @@ def _parse(formula: FormulaType) -> Tuple[Dict[str, int], int]:
 
         if token in CLOSERS:
             # Check for an index for this part
-            m = re.match(r"\d+", formula[i + 1 :])
+            m = re.match(r"\d+", formula[i + 1:])
             if m:
                 weight = int(m.group(0))
                 i += len(m.group(0))
@@ -161,7 +161,7 @@ def _parse(formula: FormulaType) -> Tuple[Dict[str, int], int]:
             return _fuse(mol, submol, weight), i
 
         elif token in OPENERS:
-            submol, sublength = _parse(formula[i + 1 :])
+            submol, sublength = _parse(formula[i + 1:])
             mol = _fuse(mol, submol)
             # skip the already read submol
             i += sublength + 1

@@ -1,9 +1,9 @@
-from typing import Tuple, cast
+from typing import Tuple, cast      # NOQA
 from typing import Union
 from typing import Dict
 from typing import NamedTuple
 # from typing import Mapping, MutableMapping, Sequence, MutableSequence
-from typing_extensions import TypedDict, Final
+from typing_extensions import TypedDict, Final   # NOQA
 from dataclasses import dataclass, asdict
 
 
@@ -26,7 +26,7 @@ class DC:
         return asdict(self)
 
     def as_typdict(self) -> tDC:
-        ad: tDC = tDC(self.as_dict)
+        ad: tDC = tDC(self.as_dict())
         return ad
 
 
