@@ -106,3 +106,9 @@ class Line:
 
 
 line = Line(Point(1, 2), Point(3, 4))
+
+
+x = {1, 2, 3, 4, 5}
+
+for a in x:
+    print("a")

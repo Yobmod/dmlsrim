@@ -1,21 +1,23 @@
 from __future__ import annotations
+import json
+import pickle
 
 import matplotlib.pyplot as plt
 import numpy as np
 from datetime import datetime
 from pathlib import Path
 import os
-from srim import Ion, Layer, Target, output
+from srim import Ion, Layer, Target  # , output
 from srim.srim import TRIM
 from srim.output import Results
 from concurrent.futures import as_completed, ProcessPoolExecutor
 import multiprocessing as mp
 from time import sleep
-from dataclasses import asdict, dataclass as dc
+from dataclasses import asdict  # , dataclass as dc
 from pydantic.dataclasses import dataclass
 
 from typing import Iterable, Sequence, Set, Union, List, Tuple, cast, Dict
-from typing_extensions import Final, Literal, TypedDict
+from typing_extensions import Literal, TypedDict
 from mytypes import floatArray, precisionLitType
 from matplotlib import use
 use('Agg')  # NoQa
@@ -28,11 +30,11 @@ class PydanticConfig:
 @dataclass(config=PydanticConfig)
 class SrimData:
     folder: Path  # folder the results is saved to
-    ion: Ion = None
-    target: Target = None
-    #num_ions: int
-    #damage_total: float
-    #damage_array: Tuple[floatArray, floatArray]
+    ion: Ion
+    num_ion: int
+    target: Target
+    damage_total: float
+    damage_array: Tuple[floatArray, floatArray]
 
     def __post_init__(self) -> None:
 
@@ -341,7 +343,7 @@ def combined_srim(ion: Ion,
     result = run_srim(ion, target, data_out_dir, num_ions, srim_dir)
     damage_total = mung_srim(result)
     damage_array = plot_srim(result, image_out_dir)
-    datum = "xxx"  # SrimData(data_out_dir, ion, target, num_ions, damage_total, damage_array)
+    datum = SrimData(data_out_dir, ion, num_ions, target, damage_total, damage_array)
 
     end = datetime.now()
     duration = end - start
@@ -396,15 +398,36 @@ def pool_srim(ions: Union[Sequence[Ion], Set[Ion]],
         """
 
     Srim_data_list: List[SrimData] = [f.result() for f in as_completed(SrimData_futures)]
-
     print(f"{len(Srim_data_list)} jobs done")
     return Srim_data_list
 
 
-if __name__ == "__main__":
+def pickle_srim(srimdata: Union[SrimData, Sequence[SrimData]]) -> None:
+    # sequence or iterable?
+    if isinstance(srimdata, SrimData):
+        srimdata = [srimdata]
 
-    loaded_data = SrimData(Path(R".\data\ceria_on_silica\ceria_2um_He@400keV"))
+    for srim_x in srimdata:
+        datapath = srim_x.folder / "result.pkl"
+
+        with open(datapath, "w+b") as pkl_f:
+            pickle.dump(srim_x, pkl_f)
+            print(f"Data pickled to {datapath}")
+
+
+def json_srim(srimdata: List[SrimData]) -> None:
+    data_ref = srimdata if isinstance(srimdata, SrimData) else srimdata[0]
+    datapath = data_ref.folder.parent / "result.json"
+
+    with open(datapath, "w+") as json_f:
+        json.dump(srimdata, json_f)
+        print(f"Data save as json to {datapath}")
+
+# if __name__ == "__main__":
+
+    r""" loaded_data = SrimData(Path(R".\data\ceria_on_silica\ceria_2um_He@400keV"))
     try:
         print(loaded_data.results.ioniz)
     except Exception:
         pass
+    """

@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing_extensions import Final
 from srim import Layer, Target
-from dcf import create_ion_list, pool_srim, elem_u_dict, elem_o_dict, elem_si_dict
+from dcf import create_ion_list, pool_srim, pickle_srim, elem_u_dict, elem_o_dict, elem_si_dict
 
 if __name__ == "__main__":
 
@@ -65,3 +65,5 @@ if __name__ == "__main__":
         num_ions=1_000_000,
         srim_dir=srim_executable_directory,
     )
+
+    pickle_srim(data_list)
