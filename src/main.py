@@ -155,8 +155,6 @@ def calc_energy_damage(results: Results, units: precisionLitType = 'nm') -> 'flo
     elif units in ('a', 'A', 'angstrom', 'angstroms', 'Angstrom', 'Angstroms'):
         dx = max(phon.depth) / 100.0  # units from pm to Angstroms
     energy_damage: floatArray = (phon.ions + phon.recoils) * dx  # add the arrays and multiply
-    cast(floatArray, energy_damage)
-    # reveal_type(energy_damage)
     print(energy_damage)
     return energy_damage
 

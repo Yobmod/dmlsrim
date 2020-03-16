@@ -16,7 +16,8 @@ from time import sleep
 from dataclasses import asdict  # , dataclass as dc
 from pydantic.dataclasses import dataclass
 
-from typing import Iterable, Sequence, Set, Union, List, Tuple, cast, Dict
+
+from typing import Iterable, Sequence, Set, Union, List, Tuple, cast, Dict, NamedTuple
 from typing_extensions import Literal, TypedDict
 from mytypes import floatArray, precisionLitType
 from matplotlib import use
@@ -104,6 +105,13 @@ class ElemClass:
                       surface=self.surface)
 
 
+class DamageStats(NamedTuple):
+    total: float
+    max_damage: float
+    max_index: int
+    max_depth: float
+
+
 # TODO see main.py for getting element classes. Need to convert to ElemClass or not? Use Dacite for convert via dict?
 # or inherit from it?
 elem_ce_dict = ElemClass(E_d=25.0, lattice=3.0, surface=4.23, atomic_num=58, atomic_mass=140.1)
@@ -178,46 +186,93 @@ def make_image_path(layer: Layer, ion: Ion,
     return outimage_directory
 
 
-def get_energy_damage_array(results: Results) -> np.ndarray[float]:
-    phon = results.phonons
-    dx = max(phon.depth) / 100.0  # ratio for units from pm to nm
-    energy_damage = (phon.ions + phon.recoils) * dx
-    damage_array_nm = np.array(phon.depth / 1000, energy_damage / phon.num_ions)
-    return damage_array_nm
-
-
-def calc_energy_damage(results: Results, units: precisionLitType = 'A', depth: int = 0) -> floatArray:
-    """<depth> given in <units>"""
-    phon = results.phonons
-    # phon.depth is array of floats from 1000 A (0.1 nm) to target depth in A
-    # TODO is this needed? use depth if given, and if not, use phonon.depth.max. Units matter?
+def get_depth_damage_array(results: Results, units: str = 'nm') -> np.ndarray[float]:
+    """get array of [0] depths in nm and [damage] for whole target"""
     if units in ('nm', 'nano'):
-        dx = int(max(phon.depth) / 100.0)  # ratio for units from pm to nm
+        ratio_A_to_units = 10
     elif units in ('a', 'A', 'angstrom', 'angstroms', 'Angstrom', 'Angstroms'):
-        dx = int(max(phon.depth) / 1000.0)  # ratio for units from pm to A
+        ratio_A_to_units = 1
     else:
         raise ValueError
 
-    if depth > 0:
-        dx = depth
-
-    energy_damage: floatArray = (phon.ions + phon.recoils) * dx  # add the arrays and multiply
-    return energy_damage  # up to depth if given otherwise all
-
-
-def plot_damage_energy(results: Results, ax: plt.axis, folder: Path, units: precisionLitType = 'nm') -> None:
     phon = results.phonons
+    dx = max(phon.depth) / 100
+    energy_damage = np.array((phon.ions + phon.recoils) * dx)
+    depth_array = np.array(phon.depth / ratio_A_to_units)
+    damage_array_nm: np.ndarray[float] = np.stack((depth_array, energy_damage))
+    return damage_array_nm
+
+
+def trunc_depth_damage_array(results: Results, units: precisionLitType = 'nm', depth: int = 0) -> floatArray:
+    """Get list of damage up to given depth. <depth> given in <units>"""
+    depth_damage_array = get_depth_damage_array(results, units=units)
+
+    if depth > 0:
+        # print(depth_damage_array[0][depth_damage_array[0][:] <= depth])
+        depth_damage = depth_damage_array[:, depth_damage_array[0][:] <= depth]
+    else:
+        depth_damage = depth_damage_array[:]
+    return depth_damage  # up to depth if given otherwise all
+
+
+def get_damage_array(results: Results, units: precisionLitType = 'nm', depth: int = 0) -> floatArray:
+    depth_damage = trunc_depth_damage_array(results, units=units, depth=depth)
+    damage_array = depth_damage[1]
+    return damage_array
+
+
+def get_damage_stats(results: Results, units: precisionLitType = 'nm', depth: int = 0) -> DamageStats:
+    array = trunc_depth_damage_array(results, units=units, depth=depth)
+    total_damage: int = int(sum(cast(Iterable[float], array[1])))
+    max_damage: int = int(max(array[1]))
+    max_ind: int = np.argmin(array[1])
+    depth_of_max: float = array[0][max_ind]
+    return DamageStats(total_damage, max_damage, max_ind, depth_of_max)
+
+
+def plot_damage_multi(results: List[Results],
+                      save_dir: Path,
+                      units: precisionLitType = 'nm',
+                      depth: int = 0
+                      ) -> None:
+    # phon = results.phonons
     if units in ('nm', 'nano'):
         units_str = 'nm'
-        depth = phon.depth / 1000.0
     elif units in ('a', 'A', 'angstrom', 'angstroms', 'Angstrom', 'Angstroms'):
         units_str = 'Angstroms'
-        depth = phon.depth / 100.0
-    energy_damage = calc_energy_damage(results, units)
-    ax.plot(depth, energy_damage / phon.num_ions, label='{}'.format(folder))
+
+    if depth > 0:
+        pass
+        # add doted line at depth
+    if isinstance(results, Results):
+        results = [results]
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
     ax.set_xlabel(f'Depth [{units_str}]')
-    ax.set_ylabel('eV')
+    ax.set_ylabel('Collision damage [eV]')
+
+    for res in results:
+        depth_damage_array = trunc_depth_damage_array(res, units=units, depth=depth)
+        damage_stats = get_damage_stats(res, units=units, depth=depth)
+        ion_name = res.ioniz.ion.symbol
+        ion_energy = int(res.ioniz.ion.energy / 1000)
+        legend = f'{ion_name} @ {ion_energy} keV, damage {damage_stats.total} eV'
+        ax.plot(depth_damage_array[0], depth_damage_array[1], label='{}'.format(legend))
+
     ax.legend()
+    fig.suptitle('Damage Energy vs. Depth', fontsize=15)
+    fig.set_size_inches((10, 6))
+    fig.savefig(os.path.join(save_dir, 'damagevsdepth_multi.png'), transparent=True)
+    # return fig
+
+
+def plot_damage_multi_from_path(data_parent: Path,
+                                units: precisionLitType = 'nm',
+                                depth: int = 0,
+                                ) -> None:
+    loaded_data = [Results(dp) for dp in data_parent.iterdir() if dp.is_dir()]
+    plot_damage_multi(loaded_data, data_parent, units=units, depth=depth)
 
 
 def plot_damage_energy_per_ion(results: Results, folder: Path, units: precisionLitType = 'nm') -> Tuple[floatArray, floatArray]:
@@ -229,7 +284,7 @@ def plot_damage_energy_per_ion(results: Results, folder: Path, units: precisionL
         units_str = 'Angstroms'
         depth = phon.depth
     fig, ax = plt.subplots()
-    energy_damage: floatArray = calc_energy_damage(results, units, 300)
+    energy_damage: floatArray = get_damage_array(results, units, 0)
     energy_damage_sum = sum(energy_damage)
     # energy_damage_kev = energy_damage_sum / 1000
 
@@ -256,7 +311,7 @@ def plot_damage_energy_total(results: Results, folder: Path, units: precisionLit
         units_str = 'Angstroms'
         depth = phon.depth
     fig, ax = plt.subplots()
-    energy_damage: floatArray = calc_energy_damage(results, units, 300)
+    energy_damage: floatArray = get_damage_array(results, units, 0)
     energy_damage_sum: float = sum(cast(Iterable[float], energy_damage))
     # energy_damage_kev = energy_damage_sum / 1000
 
@@ -311,7 +366,7 @@ def run_srim(ion: Ion,
 
 
 def mung_srim(results: Results, depth: int = 0) -> float:
-    energy_damage_sum: float = sum(cast(Iterable[float], calc_energy_damage(results)))
+    energy_damage_sum: float = sum(cast(Iterable[float], get_damage_array(results)))
     # energy_damage_kev = energy_damage_sum / 1000
     print("Damage energy: {:.1f} eV".format(energy_damage_sum))
     # print("Damage energy: {:.1f} keV".format(energy_damage_kev))
@@ -422,12 +477,3 @@ def json_srim(srimdata: List[SrimData]) -> None:
     with open(datapath, "w+") as json_f:
         json.dump(srimdata, json_f)
         print(f"Data save as json to {datapath}")
-
-# if __name__ == "__main__":
-
-    r""" loaded_data = SrimData(Path(R".\data\ceria_on_silica\ceria_2um_He@400keV"))
-    try:
-        print(loaded_data.results.ioniz)
-    except Exception:
-        pass
-    """
