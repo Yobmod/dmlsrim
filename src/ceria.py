@@ -11,9 +11,9 @@ from dcf import (
 
 from dcf import create_ion_list, elem_ce_dict, elem_o_dict, elem_si_dict
 from srim import Layer, Target  # , output
-from srim.output import Results
+# from srim.output import Results
 from pathlib import Path
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 energy_kev_list = [
     1000, 1250, 1500, 1750, 2000, 2500, 3000, 4000, 5000,

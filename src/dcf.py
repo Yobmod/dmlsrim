@@ -17,7 +17,7 @@ from dataclasses import asdict  # , dataclass as dc
 from pydantic.dataclasses import dataclass
 
 
-from typing import Iterable, Sequence, Set, Union, List, Tuple, cast, Dict, NamedTuple
+from typing import cast, Iterable, Sequence, Set, Union, List, Tuple, Dict, NamedTuple
 from typing_extensions import Literal, TypedDict
 from mytypes import floatArray, precisionLitType
 from matplotlib import use
@@ -196,7 +196,7 @@ def get_depth_damage_array(results: Results, units: str = 'nm') -> np.ndarray[fl
         raise ValueError
 
     phon = results.phonons
-    dx = max(phon.depth) / 100
+    dx = max(phon.depth) / 100  # ratio for eV/A to eV per measurement
     energy_damage = np.array((phon.ions + phon.recoils) * dx)
     depth_array = np.array(phon.depth / ratio_A_to_units)
     damage_array_nm: np.ndarray[float] = np.stack((depth_array, energy_damage))
@@ -205,6 +205,7 @@ def get_depth_damage_array(results: Results, units: str = 'nm') -> np.ndarray[fl
 
 def trunc_depth_damage_array(results: Results, units: precisionLitType = 'nm', depth: int = 0) -> floatArray:
     """Get list of damage up to given depth. <depth> given in <units>"""
+
     depth_damage_array = get_depth_damage_array(results, units=units)
 
     if depth > 0:
@@ -212,13 +213,13 @@ def trunc_depth_damage_array(results: Results, units: precisionLitType = 'nm', d
         depth_damage = depth_damage_array[:, depth_damage_array[0][:] <= depth]
     else:
         depth_damage = depth_damage_array[:]
-    return depth_damage  # up to depth if given otherwise all
+    return cast(floatArray, depth_damage)  # up to depth if given otherwise all
 
 
 def get_damage_array(results: Results, units: precisionLitType = 'nm', depth: int = 0) -> floatArray:
     depth_damage = trunc_depth_damage_array(results, units=units, depth=depth)
     damage_array = depth_damage[1]
-    return damage_array
+    return cast(floatArray, damage_array)
 
 
 def get_damage_stats(results: Results, units: precisionLitType = 'nm', depth: int = 0) -> DamageStats:
@@ -226,7 +227,7 @@ def get_damage_stats(results: Results, units: precisionLitType = 'nm', depth: in
     total_damage: int = int(sum(cast(Iterable[float], array[1])))
     max_damage: int = int(max(array[1]))
     max_ind: int = np.argmin(array[1])
-    depth_of_max: float = array[0][max_ind]
+    depth_of_max: float = cast(float, array[0][max_ind])
     return DamageStats(total_damage, max_damage, max_ind, depth_of_max)
 
 
