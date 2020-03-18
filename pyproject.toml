@@ -45,8 +45,8 @@ flake8 = "*"
 flake8-comprehensions = "*"
 pdbpp = "*"
 # pyinstaller = "*"
-safety = "*"
-black = "^19.10b0"
+# safety = "*"
+# black = "^19.10b0"
 gitpython = "*"
 
 

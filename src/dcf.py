@@ -35,7 +35,7 @@ class SrimData:
     num_ion: int
     target: Target
     damage_total: float
-    damage_array: Tuple[floatArray, floatArray]
+    damage_array: floatArray
 
     def __post_init__(self) -> None:
 
@@ -186,7 +186,7 @@ def make_image_path(layer: Layer, ion: Ion,
     return outimage_directory
 
 
-def get_depth_damage_array(results: Results, units: str = 'nm') -> np.ndarray[float]:
+def get_depth_damage_array(results: Results, units: str = 'nm') -> floatArray:
     """get array of [0] depths in nm and [damage] for whole target"""
     if units in ('nm', 'nano'):
         ratio_A_to_units = 10
@@ -276,7 +276,7 @@ def plot_damage_multi_from_path(data_parent: Path,
     plot_damage_multi(loaded_data, data_parent, units=units, depth=depth)
 
 
-def plot_damage_energy_per_ion(results: Results, folder: Path, units: precisionLitType = 'nm') -> Tuple[floatArray, floatArray]:
+def plot_damage_energy_per_ion(results: Results, folder: Path, units: precisionLitType = 'nm') -> None:
     phon = results.phonons
     if units in ('nm', 'nano'):
         units_str = 'nm'
@@ -299,11 +299,8 @@ def plot_damage_energy_per_ion(results: Results, folder: Path, units: precisionL
     fig.set_size_inches((10, 6))
     fig.savefig(os.path.join(folder, 'damagevsdepth_per_ion.png'), transparent=True)
 
-    damage_depth_data = (phon.depth, cast(floatArray, energy_damage / phon.num_ions))
-    return damage_depth_data
 
-
-def plot_damage_energy_total(results: Results, folder: Path, units: precisionLitType = 'nm') -> Tuple[np.ndarray[float], np.ndarray[float]]:
+def plot_damage_energy_total(results: Results, folder: Path, units: precisionLitType = 'nm') -> None:
     phon = results.phonons
     if units in ('nm', 'nano'):
         units_str = 'nm'
@@ -326,31 +323,6 @@ def plot_damage_energy_total(results: Results, folder: Path, units: precisionLit
     fig.set_size_inches((10, 6))
     fig.savefig(os.path.join(folder, 'damagevsdepth_total.png'), transparent=True)
 
-    damage_depth_data = (phon.depth, energy_damage)
-    return damage_depth_data
-
-
-"""
-def plot_multi_damage_energy(data: List[Tuple[np.ndarray, np.ndarray]], units: str) -> None:
-    depth = data[0]
-    damage_per_ion = data[1]
-    if units in ('nm', 'nano'):
-        units_str = 'nm'
-        depth = data[0] / 10
-    elif units in ('a', 'A', 'angstrom', 'angstroms', 'Angstrom', 'Angstroms'):
-        units_str = 'Angstroms'
-        depth = data[0]
-
-    fig, ax = plt.subplots()
-    ax.plot(depth, damage_per_ion, label='{}'.format())
-    ax.set_xlabel(f'Depth [{units_str}]')
-    ax.set_ylabel('Collision damage [eV]')
-    ax.legend()
-    fig.suptitle('Damage Energy vs. Depth', fontsize=15)
-    fig.set_size_inches((10, 6))
-    fig.savefig(os.path.join(image_out_dir, 'damagevsdepth.png'), transparent=True)
-"""
-
 
 def run_srim(ion: Ion,
              target: Target,
@@ -366,20 +338,16 @@ def run_srim(ion: Ion,
     return results
 
 
-def mung_srim(results: Results, depth: int = 0) -> float:
-    energy_damage_sum: float = sum(cast(Iterable[float], get_damage_array(results)))
-    # energy_damage_kev = energy_damage_sum / 1000
-    print("Damage energy: {:.1f} eV".format(energy_damage_sum))
-    # print("Damage energy: {:.1f} keV".format(energy_damage_kev))
-    # TODO tuple total damage	max damage	depth of max / nm damage up to depth
-
-    return energy_damage_sum
-
-
-def plot_srim(results: Results, image_out_dir: Path) -> Tuple[floatArray, floatArray]:
-    # damage_per_ion_vs_depth = plot_damage_energy_per_ion(results, data_out_dir, units='nm')
-    damage_per_ion_vs_depth = plot_damage_energy_total(results, image_out_dir, units='nm')
-    return damage_per_ion_vs_depth
+def plot_srim(results: Results,
+              image_out_dir: Path,
+              units: precisionLitType = 'nm',
+              total: bool = True,
+              per_ion: bool = True,
+              ) -> None:
+    if total:
+        plot_damage_energy_total(results, image_out_dir, units=units)
+    if per_ion:
+        plot_damage_energy_per_ion(results, image_out_dir, units=units)
 
 
 def combined_srim(ion: Ion,
@@ -397,8 +365,10 @@ def combined_srim(ion: Ion,
     print(f"{data_out_dir.name} started) using PID {pid}")
 
     result = run_srim(ion, target, data_out_dir, num_ions, srim_dir)
-    damage_total = mung_srim(result)
-    damage_array = plot_srim(result, image_out_dir)
+    damage_stats = get_damage_stats(result)
+    damage_total = damage_stats.total
+    damage_array = get_depth_damage_array(result)
+    plot_srim(result, image_out_dir)
     datum = SrimData(data_out_dir, ion, num_ions, target, damage_total, damage_array)
 
     end = datetime.now()

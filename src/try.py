@@ -52,7 +52,7 @@ TD = TypedDict('TD', {
 
 
 def test_TD(inp: TD) -> bool:
-    if inp['label'] is True:
+    if inp['label']:
         return True
     else:
         return False
@@ -82,7 +82,7 @@ NT = NamedTuple('NT', [
 
 
 def test_NT(inp: NT) -> bool:
-    if inp.label is True:
+    if inp.label:
         return True
     else:
         return False
