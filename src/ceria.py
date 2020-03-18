@@ -1,13 +1,8 @@
-from dcf import (
-    # get_depth_damage_array,
-    # trunc_depth_damage_array,
-    # get_damage_stats,
-    # get_damage_array,
-    # plot_damage_energy_per_ion,
+from dcfclass import (
     pool_srim,
-    # plot_damage_multi,
     plot_damage_multi_from_path,
-    pickle_srim,)
+    pickle_srim,
+    SrimResults,)
 
 from dcf import create_ion_list, elem_ce_dict, elem_o_dict, elem_si_dict
 from srim import Layer, Target  # , output
@@ -16,7 +11,7 @@ from pathlib import Path
 # import matplotlib.pyplot as plt
 
 energy_kev_list = [
-    1000, 1250, 1500, 1750, 2000, 2500, 3000, 4000, 5000,
+    150, 250, 350, 450
 ]
 
 ions_He_list = create_ion_list("He", energy_kev_list, units="kev")
@@ -56,7 +51,7 @@ if __name__ == "__main__":
         ions_He_list,
         ceria_2um_on_silica,
         data_parent,
-        num_ions=1_000_000,
+        num_ions=100,
         srim_dir=srim_exe_dir,
     )
 
@@ -70,7 +65,9 @@ plot graphs from parent path
 plot graphs with limit on x axis
 """
 
-plot_damage_multi_from_path(data_parent)
+#res = SrimResults(data_list[0].results)
+# res.plot_srim(Path('.'))
+# plot_damage_multi_from_path(data_parent)
 # damage_depth_array = get_depth_damage_array(loaded_data)
 
 # damage_array = get_damage_array(loaded_data, depth=2000)

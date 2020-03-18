@@ -185,6 +185,19 @@ def make_image_path(layer: Layer, ion: Ion,
     outimage_directory.mkdir(parents=True, exist_ok=True)
     return outimage_directory
 
+class SrimResults(Results):
+
+    def __init__(self, inp: Union[Path, Results]):
+        # should be try except?
+        if isinstance(inp, Path):
+            self.results = Results(inp)
+        elif isinstance(inp, Results):
+            self.results = inp
+
+
+
+
+
 
 def get_depth_damage_array(results: Results, units: str = 'nm') -> floatArray:
     """get array of [0] depths in nm and [damage] for whole target"""
