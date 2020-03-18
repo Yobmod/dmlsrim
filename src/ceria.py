@@ -57,29 +57,6 @@ if __name__ == "__main__":
 
     pickle_srim(data_list)
 
-
-# TODO
-"""
-plot graphs individually
-plot graphs from parent path
-plot graphs with limit on x axis
-"""
-
-#res = SrimResults(data_list[0].results)
-# res.plot_srim(Path('.'))
-# plot_damage_multi_from_path(data_parent)
-# damage_depth_array = get_depth_damage_array(loaded_data)
-
-# damage_array = get_damage_array(loaded_data, depth=2000)
-
-#fig = plt.figure()
-#plot_damage_multi(loaded_data, fig, data_parent)
-# data_array = plot_damage_energy_per_ion(loaded_data, data_path, 'nm')
-# plot_damage_energy_total(results: Results, folder: Path, units: precisionLitType='nm') -> Tuple[np.ndarray[float], np.ndarray[float]]:
-# sum_of_damage = mung_srim(results: Results, depth: int=0)
-# plot_srim(results: Results, image_out_dir: Path) -> Tuple[floatArray, floatArray]:
-
-# damage_depth_array = trunc_depth_damage_array(loaded_data, depth=2000)
-# stats = get_damage_stats(loaded_data, depth=2000)
-# print(stats)
-##
+    res = SrimResults(data_list[0].results)
+    res.plot_srim(Path('.'))
+    plot_damage_multi_from_path(data_parent)
