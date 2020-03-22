@@ -161,10 +161,14 @@ def make_element_subfolder_name(layer: Layer, ion: Ion,
     return data_subfolder_name
 
 
+cwd_path = Path(R'.')
+
+
 def make_data_path(layer: Layer,
                    ion: Ion,
-                   data_path: Union[Path, str] = Path(R'.\data'),
-                   precision: precisionLitType = 'um') -> Path:
+                   data_path: Union[Path, str] = cwd_path / 'data',
+                   precision: precisionLitType = 'um',
+                   ) -> Path:
     """create a folder from layer elements and stoichiometries and ion type and energy
     data_path default = '.\\data'. precision is units of the layer width, default = 'um' """
 
@@ -175,7 +179,7 @@ def make_data_path(layer: Layer,
 
 
 def make_image_path(layer: Layer, ion: Ion,
-                    image_path: Union[Path, str] = Path(R'.\images'),
+                    image_path: Union[Path, str] = cwd_path / 'images',
                     precision: precisionLitType = 'um') -> Path:
     """create a folder from layer elements and stoichiometries and ion type and energy
     data_path default = '.\\images'. precision is units of the layer width, default = 'um' """
