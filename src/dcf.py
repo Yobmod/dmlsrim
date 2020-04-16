@@ -163,7 +163,7 @@ def make_element_subfolder_name(layer: Layer, ion: Ion,
 
 def make_data_path(layer: Layer,
                    ion: Ion,
-                   data_path: Union[Path, str] = Path(R'.\data'),
+                   data_path: Union[Path, str] = R'.\data',
                    precision: precisionLitType = 'um') -> Path:
     """create a folder from layer elements and stoichiometries and ion type and energy
     data_path default = '.\\data'. precision is units of the layer width, default = 'um' """
@@ -175,7 +175,7 @@ def make_data_path(layer: Layer,
 
 
 def make_image_path(layer: Layer, ion: Ion,
-                    image_path: Union[Path, str] = Path(R'.\images'),
+                    image_path: Union[Path, str] = R'.\images',
                     precision: precisionLitType = 'um') -> Path:
     """create a folder from layer elements and stoichiometries and ion type and energy
     data_path default = '.\\images'. precision is units of the layer width, default = 'um' """
@@ -184,19 +184,6 @@ def make_image_path(layer: Layer, ion: Ion,
     outimage_directory: Path = Path(image_path) / data_subfolder_name
     outimage_directory.mkdir(parents=True, exist_ok=True)
     return outimage_directory
-
-class SrimResults(Results):
-
-    def __init__(self, inp: Union[Path, Results]):
-        # should be try except?
-        if isinstance(inp, Path):
-            self.results = Results(inp)
-        elif isinstance(inp, Results):
-            self.results = inp
-
-
-
-
 
 
 def get_depth_damage_array(results: Results, units: str = 'nm') -> floatArray:

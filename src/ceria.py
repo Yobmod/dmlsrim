@@ -1,6 +1,5 @@
 from dcfclass import (
     pool_srim,
-    plot_damage_multi_from_path,
     pickle_srim,
     SrimResults,)
 
