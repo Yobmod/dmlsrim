@@ -151,7 +151,7 @@ class _ArrayLike(Generic[_S]):
     def getfield(self, dtype: DtypeType, offset: int = 0) -> '_ArrayLike[Any]':
         ...
 
-    def item(self, args: AxesType) -> generic: ...
+    def item(self, args: AxesType) -> Generic: ...
 
     def itemset(self, arg0: Union[int, Tuple[int, ...]],
                 arg1: Any = None) -> None: ...
@@ -629,7 +629,23 @@ def argmax(input: Sequence[Any], axis: Optional[int] = None, out: Optional[ndarr
 
 
 @overload  # 1 dimensiosnal arrays give in int
+def argmax(input: _ArrayLike[Union[float, int]], axis: Optional[int] = None, out: Optional[ndarray[Any]] = None) -> int: ...
+
+
+@overload  # 1 dimensiosnal arrays give in int
 def argmax(input: _ArrayLike[Any], axis: Optional[int] = None, out: Optional[ndarray[Any]] = None) -> Union[int, ndarray[int]]: ...
+
+
+@overload  # 1 dimensiosnal arrays give in int
+def argmin(input: Sequence[Any], axis: Optional[int] = None, out: Optional[ndarray[Any]] = None) -> int: ...
+
+
+@overload  # 1 dimensiosnal arrays give in int
+def argmin(input: _ArrayLike[Union[float, int]], axis: Optional[int] = None, out: Optional[ndarray[Any]] = None) -> int: ...
+
+
+@overload  # 1 dimensiosnal arrays give in int
+def argmin(input: _ArrayLike[Any], axis: Optional[int] = None, out: Optional[ndarray[Any]] = None) -> Union[int, ndarray[int]]: ...
 
 
 def array(object: Any, dtype: Any = None, copy: bool = True,
@@ -722,6 +738,11 @@ def ones_like(a: Any, dtype: Any = None, order: str = 'K',
 def ravel(a: _ArrayLike[Any], c: Opt[Literal['C', 'F', 'A', 'K']] = None) -> _ArrayLike[Any]: ...
 
 
+def stack(arrays: Sequence(_ArrayLike[_S]),
+          axis: Optional[int] = ...,
+          out: Optional[ndarray[_S]] = ...) -> ndarray[_S]: ...
+
+
 def zeros(shape: ShapeType, dtype: DtypeType = float,
           order: str = 'C') -> ndarray[float]: ...
 
@@ -730,7 +751,11 @@ def zeros_like(a: Any, dtype: Any = None, order: str = 'K',
                subok: bool = True) -> ndarray[Any]: ...
 
 
-def savetxt(filename: Union[str, Path], array: _ArrayLike, delimiter: Optional[str] = ..., header: Optional[str] = ...) -> None: ...
+def savetxt(filename: Union[str, Path], array: _ArrayLike,
+            comments: Optional[str] = ...,
+            delimiter: Optional[str] = ...,
+            header: Optional[str] = ...,
+            footer: Optional[str] = ...) -> None: ...
 
 
 # Specific values

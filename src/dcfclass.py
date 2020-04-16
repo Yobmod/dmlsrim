@@ -500,8 +500,8 @@ class MultiSrimResults():
         print(total_dmg)
         ion_energies = [res.ion_energy for res in self.result_list][:len(total_dmg)]
 
-        ion_energy_total_dmg = np.stack((ion_energies, total_dmg))
-        return cast(floatArray, ion_energy_total_dmg)
+        ion_energy_total_dmg: floatArray = np.stack((ion_energies, total_dmg))
+        return ion_energy_total_dmg
 
     def plot_max_and_total_dmg(self,
                                depth_marker: int = 0,
@@ -587,7 +587,11 @@ class MultiSrimResults():
         fig.savefig(self.savepath / f'total_damage_vs_ion_energy_to {self.depth}nm.png', transparent=True)
         return fig, ax
 
-    def plot_max_dmgdepth_energy(self, depth_marker: int = 0, x_max: int = 0, y_max: int = 0) -> None:
+    def plot_max_dmgdepth_energy(self,
+                                 depth_marker: int = 0,
+                                 x_max: int = 0,
+                                 y_max: int = 0,
+                                 ) -> Tuple[mpl.figure.Figure, mpl.axes.Axes]:
         proxy = self.result_list[0]
         total_thickness = proxy._get_total_thickness()
 
@@ -689,8 +693,8 @@ def plot_damage_multi(results: Sequence[Results],
 def get_ion_energy_damage_total(results: Sequence[SrimResults]) -> floatArray:
     ion_energies = [data.ion_energy for data in results]
     total_dmg = [data.get_damage_stats().total for data in results]
-    ion_energy_total_dmg = np.stack((ion_energies, total_dmg))
-    return cast(floatArray, ion_energy_total_dmg)
+    ion_energy_total_dmg: floatArray = np.stack((ion_energies, total_dmg))
+    return ion_energy_total_dmg
 
 
 def plot_ion_energy_damage(results: Sequence[SrimResults],
@@ -717,7 +721,7 @@ def plot_ion_energy_maxdmg_depth(results: Sequence[SrimResults],
                                  ) -> None:
     ion_energies = [data.ion_energy for data in results]
     dmg_depth = [data.get_damage_stats().max_depth for data in results]
-    ion_energy_dmg_depth = np.stack((ion_energies, dmg_depth))
+    ion_energy_dmg_depth: floatArray = np.stack((ion_energies, dmg_depth))
     units = results[0].units
     fig = plt.figure()
     legend = ""
