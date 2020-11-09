@@ -360,6 +360,8 @@ class SrimResults():
             y_units = f"[eV] (total from {self.ion_num} ions)"
         elif plot_type == 'per_ion':
             y_units = '[eV / ion]'
+        else:
+            y_units = '[eV]'
 
         fig, ax = plt.subplots()
         fig.suptitle('Damage Energy vs. Depth', fontsize=15)
@@ -391,6 +393,8 @@ class SrimResults():
             damage = energy_damage
         elif plot_type == 'per_ion':
             damage = np.divide(energy_damage, phon.num_ions)
+        else:
+            raise NameError('plot_type must be "total" or "per_ion"')
 
         legend = f'{self.ion.symbol} @ {self.ion_energy: .0f} keV, d = {round(energy_damage_sum, 0)} eV'
         ax.plot(depth_array, damage, label=f'{legend}')
@@ -547,6 +551,7 @@ class MultiSrimResults():
                                  color='g', label=f'Layer boundary, d = {depth_marker} nm')
         else:
             depth_marker_txt = ""
+            d_line = None
 
         if depth_max > 0:
             plt.ylim((0, depth_max))

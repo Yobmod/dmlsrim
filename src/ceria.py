@@ -3,7 +3,9 @@ from dcfclass import (
     pickle_srim,
     SrimResults,)
 
-from dcf import create_ion_list, elem_ce_dict, elem_o_dict, elem_si_dict
+from dcf import (create_ion_list,
+                 elem_ce_dict, elem_o_dict, elem_si_dict,
+                 plot_damage_multi_from_path, )
 from srim import Layer, Target  # , output
 # from srim.output import Results
 from pathlib import Path
