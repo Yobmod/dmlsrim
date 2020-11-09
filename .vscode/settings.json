@@ -18,4 +18,9 @@
     "python.formatting.provider": "autopep8",
     "editor.formatOnSave": true,
     "restructuredtext.confPath": "",
+    "python.analysis.extraPaths": [
+        ".",
+        ".\\src",
+        ".\\tests"
+    ],
 }
