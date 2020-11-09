@@ -1,7 +1,7 @@
 from __future__ import annotations
 import json
 import pickle
-
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 from datetime import datetime
@@ -16,12 +16,13 @@ from time import sleep
 from dataclasses import asdict  # , dataclass as dc
 from pydantic.dataclasses import dataclass
 from pydantic import BaseModel
+from tabulate import tabulate
 
-from typing import cast, Iterable, Sequence, Set, Union, List, Tuple, Dict, NamedTuple
+import typing as typ
+from typing import cast, Iterable, Sequence, Set, Union, List, Tuple, Dict, NamedTuple, Optional
 from typing_extensions import Literal, TypedDict
 from mytypes import floatArray, precisionLitType
-from matplotlib import use
-use('Agg')  # NoQa
+mpl.use('tkAgg')  # NoQa
 
 
 class PydanticConfig:
@@ -161,10 +162,14 @@ def make_element_subfolder_name(layer: Layer, ion: Ion,
     return data_subfolder_name
 
 
+cwd_path = Path(R'.')
+
+
 def make_data_path(layer: Layer,
                    ion: Ion,
-                   data_path: Union[Path, str] = Path(R'.\data'),
-                   precision: precisionLitType = 'um') -> Path:
+                   data_path: Union[Path, str] = cwd_path / 'data',
+                   precision: precisionLitType = 'um',
+                   ) -> Path:
     """create a folder from layer elements and stoichiometries and ion type and energy
     data_path default = '.\\data'. precision is units of the layer width, default = 'um' """
 
@@ -175,7 +180,7 @@ def make_data_path(layer: Layer,
 
 
 def make_image_path(layer: Layer, ion: Ion,
-                    image_path: Union[Path, str] = Path(R'.\images'),
+                    image_path: Union[Path, str] = cwd_path / 'images',
                     precision: precisionLitType = 'um') -> Path:
     """create a folder from layer elements and stoichiometries and ion type and energy
     data_path default = '.\\images'. precision is units of the layer width, default = 'um' """
@@ -187,20 +192,63 @@ def make_image_path(layer: Layer, ion: Ion,
 
 
 class SrimResults():
+    """Class with methods:
+    *__str__(self) -> str
+    *_valid_units(self, units: precisionLitType) -> Tuple[Literal['nm', 'A'], int]
+    *get_depth_damage_array(self) -> floatArray
+    *trunc_depth_damage_array(self) -> floatArray
+    *get_damage_array(self) -> floatArray
+    *get_damage_stats(self) -> DamageStats:
+    *plot_damage_energy_per_ion(self, folder: Path) -> None
+    *plot_damage_energy_total(self, folder: Path) -> None
 
-    def __init__(self, inp: Union[Path, Results], units: precisionLitType = 'nm', depth: int = 0):
-        # should be try except?
-        if isinstance(inp, Path):
-            self.results = Results(inp)
-        elif isinstance(inp, Results):
-            self.results = inp
+    """
+
+    def __init__(self,
+                 inp: Union[Path, Results],
+                 target: Optional[Target] = None,
+                 units: precisionLitType = 'nm',
+                 depth: int = 0,
+                 savepath: Union[Path, str] = R".",
+                 ):
+
+        try:
+            if isinstance(inp, Path):
+                self.results = Results(inp)
+            elif isinstance(inp, Results):
+                self.results = inp
+        except FileNotFoundError:
+            print("Data files not found. Check paths for TRIM output files")
+
+        self._target = target
+        self.depth = depth
+
+        if isinstance(savepath, str):
+            savepath = Path(savepath)
+        self.savepath = savepath  # TODO make valid function that creates path
 
         self.units = self._valid_units(units)[0]
         self.ratio_A_to_units = self._valid_units(units)[1]
-        self.depth = depth
 
-    def __post_init__(self) -> None:
         self.ion = self.results.ioniz.ion
+        self.ion_energy = self.ion.energy / 1_000  # in keV
+        self.ion_num = self.results.phonons.num_ions
+
+    def __str__(self) -> str:
+        if self._target is not None and self.layers is not None:
+            target_str = " ".join([str(l) for l in self.layers])
+        else:
+            target_str = "[Target not defined]"
+        return f"Results class for target={target_str}, ion={self.ion.name} @ {self.ion_energy} kev. Analysis to {self.depth}{self.units}"
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, SrimResults):
+            return NotImplemented
+        else:
+            return bool(self.ion.symbol == other.ion.symbol and self.ion_energy == other.ion_energy)
+
+    def __lt__(self, other: SrimResults) -> bool:  # less than
+        return bool((self.ion.symbol, self.ion_energy) < (other.ion.symbol, other.ion_energy))
 
     def _valid_units(self, units: precisionLitType) -> Tuple[Literal['nm', 'A'], int]:
         if units in ('nm', 'nano'):
@@ -213,6 +261,31 @@ class SrimResults():
             raise ValueError
         return units, ratio_A_to_units
 
+    @property
+    def target(self) -> Target:
+        return self._target
+
+    @target.setter
+    def target(self, target: Target) -> None:
+        self._target = target
+
+    @property
+    def layers(self) -> Optional[Target.layers]:
+        if self._target is not None:
+            return self._target.layers
+        else:
+            return None
+
+    def _get_layer_depths(self) -> List[int]:
+        if self.layers is not None:
+            layer_depths = [layer.width / self.ratio_A_to_units for layer in self.layers]
+            return layer_depths
+        else:
+            raise AttributeError("Layer depth cannot be calculated unless Target is given")
+
+    def _get_total_thickness(self) -> int:
+        return sum(self._get_layer_depths())
+
     def get_depth_damage_array(self) -> floatArray:
         """get array of [0] depths in nm and [damage] for whole target"""
 
@@ -224,7 +297,8 @@ class SrimResults():
         return damage_array_nm
 
     def trunc_depth_damage_array(self) -> floatArray:
-        """Get list of damage up to given depth. <depth> given in <units>"""
+        """Get list of damage up to given depth. <depth> and <units> defined at initialisation
+        If no depth given, returns all depth / damage data"""
 
         depth_damage_array = self.get_depth_damage_array()
 
@@ -235,12 +309,41 @@ class SrimResults():
             depth_damage = depth_damage_array[:]
         return cast(floatArray, depth_damage)  # up to depth if given otherwise all
 
+    def make_depth_damage_table(self) -> str:
+        """convert data to table from printing"""
+        headers = ['depth', 'damage']
+        table = tabulate(self.trunc_depth_damage_array().transpose(), headers, tablefmt="fancy_grid", colalign=("right",))
+        return table
+
+    def make_depth_damage_csv(self, filename: Union[Path, str] = "depth_damage.csv") -> str:
+        filename = Path(f"{self.ion.symbol}@{self.ion_energy}kev.csv")
+        filepath = self.savepath / filename
+        np.savetxt(filepath,
+                   self.trunc_depth_damage_array().transpose(),
+                   header='depth\t damage',
+                   footer=str(self),
+                   delimiter="\t", comments="")
+        return self.make_depth_damage_table()
+
     def get_damage_array(self) -> floatArray:
+        """1D array of damage at given self.<depth>"""
         depth_damage = self.trunc_depth_damage_array()
         damage_array = depth_damage[1]
         return cast(floatArray, damage_array)
 
+    def get_depth_array(self) -> floatArray:
+        """1D array of damage at given self.<depth>"""
+        depth_damage = self.trunc_depth_damage_array()
+        damage_array = depth_damage[0]
+        return cast(floatArray, damage_array)
+
+    def get_index_from_depth(self, chosen_depth: int) -> int:
+        depth_array = self.get_depth_array()
+        idx: int = np.abs(depth_array - chosen_depth).argmin()
+        return idx
+
     def get_damage_stats(self) -> DamageStats:
+        """Get stats to given <depth> as namedTuple. total_damage / max_damage / max_ind / depth_of_max"""
         array = self.trunc_depth_damage_array()
         total_damage: int = int(sum(cast(Iterable[float], array[1])))
         max_damage: int = int(max(array[1]))
@@ -248,57 +351,315 @@ class SrimResults():
         depth_of_max: float = cast(float, array[0][max_ind])
         return DamageStats(total_damage, max_damage, max_ind, depth_of_max)
 
-    def plot_damage_energy_per_ion(self, folder: Path) -> None:
-        phon = self.results.phonons
+    def _create_damage_depth_fig(self,
+                                 depth_marker: int = 0,
+                                 plot_type: Literal['total', 'per_ion'] = 'total'
+                                 ) -> Tuple[mpl.figure.Figure, mpl.axes.Axes]:
+
+        if plot_type == 'total':
+            y_units = f"[eV] (total from {self.ion_num} ions)"
+        elif plot_type == 'per_ion':
+            y_units = '[eV / ion]'
 
         fig, ax = plt.subplots()
-        energy_damage: floatArray = self.get_damage_array()
-        energy_damage_sum = sum(energy_damage)
-        # energy_damage_kev = energy_damage_sum / 1000
-
-        # ax.plot(depth, energy_damage / phon.num_ions, label='{}'.format(folder))
-        legend = f'{folder.name}, {energy_damage_sum} eV'
-        ax.plot(phon.depth / self.ratio_A_to_units, energy_damage / phon.num_ions, label='{}'.format(legend))
-        ax.set_xlabel(f'Depth [{self.units}]')
-        ax.set_ylabel('Collision damage [eV / ion]')
-        ax.legend()
         fig.suptitle('Damage Energy vs. Depth', fontsize=15)
         fig.set_size_inches((10, 6))
-        fig.savefig(os.path.join(folder, 'damagevsdepth_per_ion.png'), transparent=True)
 
-    def plot_damage_energy_total(self, folder: Path) -> None:
-        phon = self.results.phonons
-        fig, ax = plt.subplots()
+        ax.set_xlabel(f'Depth [{self.units}]')
+        ax.set_ylabel(f'Collision damage {y_units}')
+
+        if depth_marker != 0:
+            plt.axvline(x=depth_marker, ymin=0.0, ymax=200.0, linestyle='--', linewidth=1,
+                        color='g', label=f'Layer boundary, d = {depth_marker} nm')
+        return fig, ax
+
+    def _add_damage_depth_line(self,
+                               ax: Optional[mpl.axes.Axes] = None,
+                               plot_type: Literal['total', 'per_ion'] = 'total'
+                               ) -> mpl.axes.Axes:
+        if ax is None:
+            ax = plt.gca()
+
         energy_damage: floatArray = self.get_damage_array()
         energy_damage_sum: float = sum(cast(Iterable[float], energy_damage))
-        # energy_damage_kev = energy_damage_sum / 1000
-        # ax.plot(depth, energy_damage / phon.num_ions, label='{}'.format(folder))
-        legend = f'{folder.name}, {energy_damage_sum} eV'
-        ax.plot(phon.depth / self.ratio_A_to_units, energy_damage, label='{}'.format(legend))
-        ax.set_xlabel(f'Depth [{self.units}]')
-        ax.set_ylabel(f'Collision damage [eV] (total from {phon.num_ions} ions')
+        limit = len(energy_damage)  # number of data point up to self.depth
+
+        phon = self.results.phonons
+        depth_array = phon.depth[:limit] / self.ratio_A_to_units
+
+        if plot_type == 'total':
+            damage = energy_damage
+        elif plot_type == 'per_ion':
+            damage = np.divide(energy_damage, phon.num_ions)
+
+        legend = f'{self.ion.symbol} @ {self.ion_energy: .0f} keV, d = {round(energy_damage_sum, 0)} eV'
+        ax.plot(depth_array, damage, label=f'{legend}')
         ax.legend()
-        fig.suptitle('Damage Energy vs. Depth', fontsize=15)
-        fig.set_size_inches((10, 6))
-        fig.savefig(os.path.join(folder, 'damagevsdepth_total.png'), transparent=True)
+        return ax
+
+    def plot_damage_depth(self,
+                          filename: Union[Path, str, None] = None,
+                          depth_marker: int = 0,
+                          plot_type: Literal['total', 'per_ion'] = 'total'
+                          ) -> None:
+        """plot damage energy against depth, up to given <depth>. Add vertical line at <depth_marker>"""
+
+        fig, ax = self._create_damage_depth_fig(plot_type=plot_type)
+        self._add_damage_depth_line(ax=ax, plot_type=plot_type)
+
+        if self.depth == 0:
+            depth_txt = ""
+        else:
+            depth_txt = f"_to_{self.depth}{self.units}"
+
+        if filename is None:
+            filename = Path(f'{self.ion.symbol}@{self.ion_energy}_damagevsdepth_{plot_type}{depth_txt}.png')
+        elif isinstance(filename, (str, Path)):
+            filename = Path(filename)
+
+        print(self.savepath / filename)
+        fig.savefig(self.savepath / filename, transparent=True)
+        # plt.show()
+        plt.close(fig)
 
     def plot_srim(self,
-                  image_out_dir: Path,
+                  filename: Union[Path, str, None] = None,
+                  depth_marker: int = 0,
                   total: bool = True,
                   per_ion: bool = True,
                   ) -> None:
+
         if total:
-            self.plot_damage_energy_total(image_out_dir)
+            self.plot_damage_depth(filename, depth_marker=depth_marker, plot_type='total')
         if per_ion:
-            self.plot_damage_energy_per_ion(image_out_dir)
+            self.plot_damage_depth(filename, depth_marker=depth_marker, plot_type='per_ion')
 
 
-def plot_damage_multi(results: List[Results],
+class MultiSrimResults():
+
+    def __init__(self,
+                 inp: Union[str, Path, typ.Sequence[Path], typ.Sequence[Results], typ.Sequence[SrimResults]],
+                 target: Optional[Target] = None,
+                 units: precisionLitType = 'nm',
+                 depth: int = 0,
+                 savepath: Union[Path, str] = R".\output",
+                 ):
+
+        self._target = target
+        self.depth = depth
+        self.units = units
+        self.savepath = Path(savepath)
+        self.result_list: Sequence[SrimResults]
+        try:
+            if isinstance(inp, Path) or isinstance(inp, str):
+                inp = Path(inp)
+                self.result_list = [SrimResults(x, depth=self.depth) for x in inp.iterdir() if inp.is_dir()]
+            elif isinstance(inp, typ.Sequence) and all(isinstance(x, (Path, Results)) for x in inp):
+                self.result_list = [SrimResults(cast(Union[Results, Path], x), depth=self.depth) for x in inp]
+            elif isinstance(inp, typ.Sequence) and all(isinstance(x, SrimResults) for x in inp):
+                self.result_list = cast(Sequence[SrimResults], inp)
+
+            else:
+                raise TypeError("MultiSrimResults() takes Path or Sequence")
+        except FileNotFoundError:
+            print("Data files not found. Check paths for TRIM output files")
+
+        self.proxy = self.result_list[0]
+
+    def plot_damage_multi(self,
+                          depth_marker: int = 0,
+                          plot_type: Literal['total', 'per_ion'] = 'total',
+                          ) -> plt.figure.Figure:
+        """
+        plot_damage_multi([res.results], res.path, res.units, res.depth)
+        """
+
+        proxy_res = self.result_list[0]
+
+        fig, ax = proxy_res._create_damage_depth_fig(depth_marker, plot_type)
+
+        for result in self.result_list:
+            result._add_damage_depth_line(ax, plot_type=plot_type)
+        fig.savefig(self.savepath / 'damagevsdepth_multi.png', transparent=True)
+        plt.close(fig)
+        return fig
+
+    def get_depth_damage_arrays(self) -> List[floatArray]:
+        return [res.get_depth_damage_array() for res in self.result_list]
+
+    def get_damage_total_energy_array(self, depth_marker: int = 0) -> floatArray:
+        depth_damage_arrays = self.get_depth_damage_arrays()
+        if depth_marker > 0:
+            # print(depth_damage_array[0][depth_damage_array[0][:] <= depth])
+            depth_damages = [dd[:, dd[0][:] <= depth_marker] for dd in depth_damage_arrays]
+        else:
+            depth_damages = [dd[:] for dd in depth_damage_arrays]
+
+        dmges = [depth_damage[1] for depth_damage in depth_damages]
+        total_dmg = [sum(d) for d in dmges]
+        print(total_dmg)
+        ion_energies = [res.ion_energy for res in self.result_list][:len(total_dmg)]
+
+        ion_energy_total_dmg: floatArray = np.stack((ion_energies, total_dmg))
+        return ion_energy_total_dmg
+
+    def plot_max_and_total_dmg(self,
+                               depth_marker: int = 0,
+                               x_max: int = 0,
+                               depth_max: int = 0,
+                               damage_max: int = 0,
+                               title: bool = False,
+                               ) -> mpl.figure.Figure:
+
+        fig, ax = plt.subplots()
+        data = self.get_damage_total_energy_array(depth_marker)
+
+        ax.set_xlabel(f'Ion Energy [ev]')
+        ax.set_ylabel(f'Collision damage [eV] (total from {self.proxy.ion_num} ions)')
+        legend = f'Total Damage in {depth_marker} nm'
+        line = ax.plot(data[0], data[1], label='{}'.format(legend))
+        # ax.legend()
+
+        if x_max > 0:
+            plt.xlim((0, x_max))
+
+        if damage_max > 0:
+            plt.ylim((0, damage_max))
+
+        if title:
+            fig.suptitle('Total Damage Energy and depth of maximum damage vs. Ion Energy', fontsize=15)
+
+        proxy = self.result_list[0]
+        total_thickness = proxy._get_total_thickness()
+
+        sex_ax = ax.twinx()
+        sex_ax.set_ylabel(f'Depth of max damage [{self.units}]', rotation=-90, labelpad=5)
+
+        legend2 = f'Depth of max damage'
+        ion_energies = [res.ion_energy for res in self.result_list]
+        max_damage_depth = [res.get_damage_stats().max_depth for res in self.result_list]
+        line2 = sex_ax.plot(ion_energies[:len(max_damage_depth)], max_damage_depth, color='g', label='{}'.format(legend2))
+
+        if depth_marker != 0:
+            max_max_depth = max(max_damage_depth)
+            depth_marker_txt = f"_marked_{depth_marker}nm"
+            d_line = plt.axhline(y=depth_marker, xmin=0.0, xmax=max_max_depth*1.2, linestyle='--', linewidth=1,
+                                 color='g', label=f'Layer boundary, d = {depth_marker} nm')
+        else:
+            depth_marker_txt = ""
+
+        if depth_max > 0:
+            plt.ylim((0, depth_max))
+        else:
+            plt.ylim((0, total_thickness))
+
+        lines = line + line2 + [d_line]
+        labels = [l.get_label() for l in lines]
+        sex_ax.legend(lines, labels, loc='upper right')
+        # 'upper left', 'upper right', 'lower left', 'lower right'
+        # 'upper center', 'lower center', 'center left', 'center right'
+        # 'center', 'best'
+        fig.set_size_inches((10, 6))
+        fig.savefig(self.savepath / f'total_dmg_and_depth_of_max_vs_ion_energy{depth_marker_txt}.png', transparent=True)
+
+        return fig
+
+    def plot_damage_total_energy(self, x_max: int = 0, y_max: int = 0, title: bool = False) -> mpl.figure.Figure:
+
+        fig, ax = plt.subplots()
+        data = self.get_damage_total_energy_array()
+
+        ax.set_xlabel(f'Ion Energy [ev]')
+        ax.set_ylabel(f'Collision damage [eV] (total from {self.proxy.ion_num} ions)')
+        legend = f'{self.proxy.ion.symbol}'
+        ax.plot(data[0], data[1], label='{}'.format(legend))
+        ax.legend()
+
+        if x_max > 0:
+            plt.xlim((0, x_max))
+
+        if y_max > 0:
+            plt.ylim((0, y_max))
+
+        if title:
+            fig.suptitle('Total Damage Energy vs. Ion Energy', fontsize=15)
+        fig.set_size_inches((10, 6))
+        fig.savefig(self.savepath / f'total_damage_vs_ion_energy_to {self.depth}nm.png', transparent=True)
+        return fig, ax
+
+    def plot_max_dmgdepth_energy(self,
+                                 depth_marker: int = 0,
+                                 x_max: int = 0,
+                                 y_max: int = 0,
+                                 ) -> Tuple[mpl.figure.Figure, mpl.axes.Axes]:
+        proxy = self.result_list[0]
+        total_thickness = proxy._get_total_thickness()
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.set_xlabel(f'Ion Energy [ev]')
+        ax.set_ylabel(f'Depth of max damage [{self.units}]')
+
+        legend = f'{self.proxy.ion.symbol}'
+        ion_energies = [res.ion_energy for res in self.result_list]
+        max_damage_depth = [res.get_damage_stats().max_depth for res in self.result_list]
+        ax.plot(ion_energies[:len(max_damage_depth)], max_damage_depth, label='{}'.format(legend))
+
+        if depth_marker != 0:
+            max_max_depth = max(max_damage_depth)
+            depth_marker_txt = f"_marked_{depth_marker}nm"
+            plt.axhline(y=depth_marker, xmin=0.0, xmax=max_max_depth*1.2, linestyle='--', linewidth=1,
+                        color='g', label=f'Layer boundary, d = {depth_marker} nm')
+        else:
+            depth_marker_txt = ""
+
+        if x_max > 0:
+            plt.xlim((0, x_max))
+
+        if y_max > 0:
+            plt.ylim((0, y_max))
+        else:
+            plt.ylim((0, total_thickness))
+
+        ax.legend()
+        fig.suptitle('Depth of maximum damage vs. Ion energy', fontsize=15)
+        fig.set_size_inches((10, 6))
+        fig.savefig(self.savepath / f'depth_of_max_vs_ion_energy{depth_marker_txt}.png', transparent=True)
+        return fig, ax
+
+    def plot_surface_damage(self, chosen_depth: int) -> None:
+        # calc and plot damage at surface
+
+        idx = self.proxy.get_index_from_depth(chosen_depth)
+        dmg_nm = [res.get_damage_array()[idx] for res in self.result_list]
+        ion_energies = [res.ion_energy for res in self.result_list]
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.set_xlabel(f'Ion Energy [ev]')
+        ax.set_ylabel(f'Collision damage [eV] at {chosen_depth} nm (total from {self.proxy.ion_num} ions)')
+        legend = f'{self.proxy.ion.symbol}'
+
+        ax.plot(ion_energies, dmg_nm, label='{}'.format(legend))
+        ax.legend()
+        fig.suptitle(f'Total Damage Energy at {chosen_depth} nm vs. Ion Energy', fontsize=15)
+        fig.set_size_inches((10, 6))
+        fig.savefig(self.savepath / f'damage_{chosen_depth: .0f}nm_vs_ion_energy.png', transparent=True)
+        # plt.close(fig)
+
+
+############################################################################################################
+# TODO Make wrapper class that takes parent folder
+
+
+def plot_damage_multi(results: Sequence[Results],
                       save_dir: Path,
                       units: precisionLitType = 'nm',
                       depth: int = 0
                       ) -> None:
-
+    """
+    plot_damage_multi([res.results], res.path, res.units, res.depth)
+    """
     if depth > 0:
         pass
         # add doted line at depth
@@ -329,12 +690,51 @@ def plot_damage_multi(results: List[Results],
     # return fig
 
 
-def plot_damage_multi_from_path(data_parent: Path,
-                                units: precisionLitType = 'nm',
-                                depth: int = 0,
-                                ) -> None:
-    loaded_data = [Results(dp) for dp in data_parent.iterdir() if dp.is_dir()]
-    plot_damage_multi(loaded_data, data_parent, units=units, depth=depth)
+def get_ion_energy_damage_total(results: Sequence[SrimResults]) -> floatArray:
+    ion_energies = [data.ion_energy for data in results]
+    total_dmg = [data.get_damage_stats().total for data in results]
+    ion_energy_total_dmg: floatArray = np.stack((ion_energies, total_dmg))
+    return ion_energy_total_dmg
+
+
+def plot_ion_energy_damage(results: Sequence[SrimResults],
+                           save_dir: Path,
+                           ) -> None:
+    data = get_ion_energy_damage_total(results)
+
+    fig = plt.figure()
+    legend = ""
+
+    ax = fig.add_subplot(111)
+    ax.plot(data[0], data[1], label='{}'.format(legend))
+    ax.set_xlabel('Ion Energy [keV]')
+    ax.set_ylabel('Collision damage [eV]')
+    ax.legend()
+
+    fig.suptitle('Damage Energy vs. Ion Energy', fontsize=15)
+    fig.set_size_inches((10, 6))
+    fig.savefig(save_dir / 'damagevsion.png', transparent=True)
+
+
+def plot_ion_energy_maxdmg_depth(results: Sequence[SrimResults],
+                                 save_dir: Path,
+                                 ) -> None:
+    ion_energies = [data.ion_energy for data in results]
+    dmg_depth = [data.get_damage_stats().max_depth for data in results]
+    ion_energy_dmg_depth: floatArray = np.stack((ion_energies, dmg_depth))
+    units = results[0].units
+    fig = plt.figure()
+    legend = ""
+
+    ax = fig.add_subplot(111)
+    ax.plot(ion_energy_dmg_depth[0], ion_energy_dmg_depth[1], label='{}'.format(legend))
+    ax.set_xlabel('Ion Energy [keV]')
+    ax.set_ylabel(f'Depth of max damage [{units}]')
+    ax.legend()
+
+    fig.suptitle(f'Depth of Maximum Damage Energy vs. Ion Energy', fontsize=15)
+    fig.set_size_inches((10, 6))
+    fig.savefig(save_dir / 'depthvsion.png', transparent=True)
 
 
 def run_srim(ion: Ion,
