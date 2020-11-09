@@ -10,6 +10,7 @@ repository = "https://github.com/Yobmod/dmlsrim"
 python = "^3.7"
 matplotlib = "*"  # brings numpy
 typing-extensions = "*"
+numpy = {git = 'https://github.com/numpy/numpy.git'}
 # data-science-types = "*"
 # numpy-stubs = "*"
 # pillow = "*"

@@ -236,7 +236,7 @@ class SrimResults():
 
     def __str__(self) -> str:
         if self._target is not None and self.layers is not None:
-            target_str = " ".join([str(l) for l in self.layers])
+            target_str = " ".join([str(lay) for lay in self.layers])
         else:
             target_str = "[Target not defined]"
         return f"Results class for target={target_str}, ion={self.ion.name} @ {self.ion_energy} kev. Analysis to {self.depth}{self.units}"
@@ -290,7 +290,8 @@ class SrimResults():
         """get array of [0] depths in nm and [damage] for whole target"""
 
         phon = self.results.phonons
-        dx = max(phon.depth) / 100  # ratio for eV/A to eV per measurement
+        depths: np.ndarray[float] = phon.depth
+        dx = depths.max() / 100  # ratio for eV/A to eV per measurement
         energy_damage = np.array((phon.ions + phon.recoils) * dx)
         depth_array = np.array(phon.depth / self.ratio_A_to_units)
         damage_array_nm: np.ndarray[float] = np.stack((depth_array, energy_damage))
@@ -339,16 +340,17 @@ class SrimResults():
 
     def get_index_from_depth(self, chosen_depth: int) -> int:
         depth_array = self.get_depth_array()
+        # subtract chosen_depth from each, 0, then must be argmin. np.abs in case float precision gives -0.x
         idx: int = np.abs(depth_array - chosen_depth).argmin()
         return idx
 
     def get_damage_stats(self) -> DamageStats:
         """Get stats to given <depth> as namedTuple. total_damage / max_damage / max_ind / depth_of_max"""
         array = self.trunc_depth_damage_array()
-        total_damage: int = int(sum(cast(Iterable[float], array[1])))
-        max_damage: int = int(max(array[1]))
-        max_ind: int = np.argmin(array[1])
-        depth_of_max: float = cast(float, array[0][max_ind])
+        total_damage = int(array[1].sum())
+        max_damage = int(array[1].max())
+        max_ind = np.argmin(array[1])
+        depth_of_max = float(array[0][max_ind])
         return DamageStats(total_damage, max_damage, max_ind, depth_of_max)
 
     def _create_damage_depth_fig(self,
@@ -518,7 +520,7 @@ class MultiSrimResults():
         fig, ax = plt.subplots()
         data = self.get_damage_total_energy_array(depth_marker)
 
-        ax.set_xlabel(f'Ion Energy [ev]')
+        ax.set_xlabel('Ion Energy [ev]')
         ax.set_ylabel(f'Collision damage [eV] (total from {self.proxy.ion_num} ions)')
         legend = f'Total Damage in {depth_marker} nm'
         line = ax.plot(data[0], data[1], label='{}'.format(legend))
@@ -539,7 +541,7 @@ class MultiSrimResults():
         sex_ax = ax.twinx()
         sex_ax.set_ylabel(f'Depth of max damage [{self.units}]', rotation=-90, labelpad=5)
 
-        legend2 = f'Depth of max damage'
+        legend2 = 'Depth of max damage'
         ion_energies = [res.ion_energy for res in self.result_list]
         max_damage_depth = [res.get_damage_stats().max_depth for res in self.result_list]
         line2 = sex_ax.plot(ion_energies[:len(max_damage_depth)], max_damage_depth, color='g', label='{}'.format(legend2))
@@ -559,7 +561,7 @@ class MultiSrimResults():
             plt.ylim((0, total_thickness))
 
         lines = line + line2 + [d_line]
-        labels = [l.get_label() for l in lines]
+        labels = [lin.get_label() for lin in lines]
         sex_ax.legend(lines, labels, loc='upper right')
         # 'upper left', 'upper right', 'lower left', 'lower right'
         # 'upper center', 'lower center', 'center left', 'center right'
@@ -574,7 +576,7 @@ class MultiSrimResults():
         fig, ax = plt.subplots()
         data = self.get_damage_total_energy_array()
 
-        ax.set_xlabel(f'Ion Energy [ev]')
+        ax.set_xlabel('Ion Energy [ev]')
         ax.set_ylabel(f'Collision damage [eV] (total from {self.proxy.ion_num} ions)')
         legend = f'{self.proxy.ion.symbol}'
         ax.plot(data[0], data[1], label='{}'.format(legend))
@@ -602,7 +604,7 @@ class MultiSrimResults():
 
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        ax.set_xlabel(f'Ion Energy [ev]')
+        ax.set_xlabel('Ion Energy [ev]')
         ax.set_ylabel(f'Depth of max damage [{self.units}]')
 
         legend = f'{self.proxy.ion.symbol}'
@@ -641,7 +643,7 @@ class MultiSrimResults():
 
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        ax.set_xlabel(f'Ion Energy [ev]')
+        ax.set_xlabel('Ion Energy [ev]')
         ax.set_ylabel(f'Collision damage [eV] at {chosen_depth} nm (total from {self.proxy.ion_num} ions)')
         legend = f'{self.proxy.ion.symbol}'
 
@@ -737,7 +739,7 @@ def plot_ion_energy_maxdmg_depth(results: Sequence[SrimResults],
     ax.set_ylabel(f'Depth of max damage [{units}]')
     ax.legend()
 
-    fig.suptitle(f'Depth of Maximum Damage Energy vs. Ion Energy', fontsize=15)
+    fig.suptitle('Depth of Maximum Damage Energy vs. Ion Energy', fontsize=15)
     fig.set_size_inches((10, 6))
     fig.savefig(save_dir / 'depthvsion.png', transparent=True)
 

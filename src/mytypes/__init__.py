@@ -7,7 +7,7 @@ precisionLitType = Literal['um', 'nm', 'A', 'a', 'micro', 'nano', 'angstrom', 'a
 
 
 if TYPE_CHECKING:  # for mypy
-    imageType = NewType('imageType', np._ArrayLike[int])  # requres numpy stubs to be discoverable by mypy
+    imageType = NewType('imageType', np._ArrayLike[float])  # requres numpy stubs to be discoverable by mypy
     intArray = np.ndarray[int]
     floatArray = np.ndarray[float]
 else:  # python doesnt allow ndarray subscriptable yet
