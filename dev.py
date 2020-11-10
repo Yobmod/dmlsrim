@@ -58,8 +58,8 @@ if update_pending:
         raise
 
 venv_bytespath = subprocess.check_output("poetry env info --path".split(), shell=True)
-venv_path = venv_bytespath.decode("UTF-8")
-venv_path = venv_path.strip()
+venv_str = venv_bytespath.decode("UTF-8")
+venv_path = venv_str.strip()
 
 # check if vscode settings exists, or create if not
 Path(".vscode").mkdir(parents=True, exist_ok=True)
