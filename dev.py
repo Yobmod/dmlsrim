@@ -24,7 +24,10 @@ try:
     repo.remotes.origin.pull()
     print("Pulling from github....")
 except Exception as e:
-    print(e)
+    print("Could not pull from github!")
+    raise e
+else:
+    print("                  .... done")
 
 if repo.is_dirty():
     changedFiles = [item.a_path for item in repo.index.diff(None)]
