@@ -31,7 +31,6 @@
     "python.linting.pylintEnabled": false,
     "python.poetryPath": "poetry",
     "python.pythonPath": "C:\\Users\\laventin.LANCS\\AppData\\Local\\pypoetry\\Cache\\virtualenvs\\dmlsrim-7DeZLsbd-py3.7",
-    // "python.testing.cwd": "${workspaceFolder}\\tests",
     "python.testing.nosetestsEnabled": false,
     "python.testing.pytestArgs": [
         "--verbose",
