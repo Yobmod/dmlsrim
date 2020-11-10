@@ -64,6 +64,8 @@ venv_path = venv_bytespath.decode("UTF-8")
 Path(".vscode").mkdir(parents=True, exist_ok=True)
 Path(".vscode/settings.json").touch()
 
+print(f"Updating path to \n {venv_path}")
+
 with open(".vscode/settings.json", "r") as f:
     settings = json.load(f)
     settings["python.pythonPath"] = venv_path
