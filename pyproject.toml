@@ -10,7 +10,11 @@ repository = "https://github.com/Yobmod/dmlsrim"
 python = "^3.7"
 matplotlib = "*"  # brings numpy
 typing-extensions = "*"
-numpy = {git = 'https://github.com/numpy/numpy.git'}
+numpy = [
+    {version='==1.19.3', markers="sys_platform=='win64'"},
+    {git = 'https://github.com/numpy/numpy.git', markers="sys_platform=='linux'"},
+]
+
 # data-science-types = "*"
 # numpy-stubs = "*"
 # pillow = "*"
@@ -65,5 +69,12 @@ gitpython = "*"
 
 
 [build-system]
-requires = ["poetry>=1.05"]
+requires = ["poetry>=1.1.4"]
 build-backend = "poetry.masonry.api"
+
+[tool.pytest.ini_options]
+
+testpaths = [    
+    "tests",
+    "integration",
+    ]
