@@ -20,6 +20,11 @@ dotenv.load_dotenv(cwd / ".env")
 username = os.getenv("GIT_USERNAME") or "DML"
 password = os.getenv("GIT_PASSWORD")  # or None
 
+try:
+    repo.remotes.origin.pull()
+    print("Pulling from github....")
+except Exception as e:
+    print(e)
 
 if repo.is_dirty():
     changedFiles = [item.a_path for item in repo.index.diff(None)]
