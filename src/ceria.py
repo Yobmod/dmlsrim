@@ -45,7 +45,7 @@ ceria_2um_on_silica = Target([layer_CO2_2um, layer_SiO2_10um])
 if __name__ == "__main__":
 
     # poin to srim exec
-    srim_exe_dir = Path(r"C:\srim")
+    srim_exe_dir = Path(R"C:\srim")
     data_parent = Path(R".\data\ceria_pure__2um")
 
     data_list = pool_srim(

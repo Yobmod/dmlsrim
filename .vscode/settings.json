@@ -7,7 +7,7 @@
     "python.analysis.completeFunctionParens": true,
     "python.analysis.extraPaths": [
         ".\\src",
-        ".\\src_WA"
+        ".\\tests"
     ],
     "python.analysis.typeCheckingMode": "off",
     "python.envFile": "${workspaceFolder}\\.env",
@@ -36,5 +36,12 @@
     "vsintellicode.features.python.deepLearning": "enabled",
     "vsintellicode.modify.editor.suggestSelection": "automaticallyOverrodeDefaultValue",
     "window.zoomLevel": 1,
-    "workbench.iconTheme": "material-icon-theme"
+    "workbench.iconTheme": "material-icon-theme",
+    "python.testing.pytestArgs": [
+        "tests"
+    ],
+    "python.testing.cwd": "${workspaceFolder}",
+    "python.testing.unittestEnabled": false,
+    "python.testing.nosetestsEnabled": false,
+    "python.testing.pytestEnabled": true,
 }
