@@ -1,26 +1,40 @@
 {
-    "python.pythonPath": "c:\\Users\\laventin.LANCS\\AppData\\Local\\pypoetry\\Cache\\virtualenvs\\dmlsrim-7DeZLsbd-py3.7\\Scripts\\python.exe",
-    // "C:\\Users\\laventin.LANCS\\AppData\\Local\\pypoetry\\Cache\\virtualenvs\\dmlsrim-7DeZLsbd-py3.7",
-    // "C:\\Users\\Customer\\AppData\\Local\\pypoetry\\Cache\\virtualenvs\\dmlsrim-7DeZLsbd-py3.7\\Scripts\\python.exe",
-    "python.autoComplete.extraPaths": [
-        ".",
-        ".\\src",
-        ".\\tests",
-    ],
-    "python.linting.enabled": true,
-    "python.linting.mypyEnabled": true,
-    "python.linting.pylamaEnabled": true,
-    "python.linting.flake8Enabled": true,
-    "python.testing.promptToConfigure": false,
-    "python.testing.pytestEnabled": true,
-    "python.testing.unittestEnabled": false,
-    "python.testing.nosetestsEnabled": false,
-    "python.formatting.provider": "autopep8",
+    "editor.fontSize": 16,
+    "editor.formatOnPaste": true,
     "editor.formatOnSave": true,
-    "restructuredtext.confPath": "",
+    "editor.suggestSelection": "first",
+    "explorer.confirmDelete": false,
+    "python.analysis.completeFunctionParens": true,
     "python.analysis.extraPaths": [
-        ".",
         ".\\src",
-        ".\\tests"
+        ".\\src_WA"
     ],
+    "python.analysis.typeCheckingMode": "off",
+    "python.envFile": "${workspaceFolder}\\.env",
+    "python.formatting.autopep8Args": [
+        "--max-line-length",
+        "120",
+        "--experimental"
+    ],
+    "python.formatting.blackArgs": [
+        "--line-length",
+        "120"
+    ],
+    "python.formatting.provider": "autopep8",
+    "python.languageServer": "Pylance",
+    "python.linting.enabled": true,
+    "python.linting.flake8Enabled": true,
+    "python.linting.mypyEnabled": true,
+    "python.linting.pycodestyleEnabled": false,
+    "python.linting.pydocstyleEnabled": false,
+    "python.linting.pylamaEnabled": false,
+    "python.linting.pylintEnabled": false,
+    "python.poetryPath": "poetry",
+    "python.pythonPath": "C:\\Users\\laventin.LANCS\\AppData\\Local\\pypoetry\\Cache\\virtualenvs\\dmlsrim-7DeZLsbd-py3.7",
+    "python.venvPath": "C:\\Users\\laventin.LANCS\\.virtualenvs",
+    "sourcery.token": "user_ubUeZlHC6PxolyCdAYoJ_3Lbis3LadO4jAP01U5SkLY7bwQA3ku3LLWe9pY",
+    "vsintellicode.features.python.deepLearning": "enabled",
+    "vsintellicode.modify.editor.suggestSelection": "automaticallyOverrodeDefaultValue",
+    "window.zoomLevel": 1,
+    "workbench.iconTheme": "material-icon-theme"
 }
