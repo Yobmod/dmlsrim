@@ -20,5 +20,5 @@ from pydantic.dataclasses import dataclass
 from typing import cast, Iterable, Sequence, Set, Union, List, Tuple, Dict, NamedTuple
 from typing_extensions import Literal, TypedDict
 
-from mytypes import floatArray, precisionLitType
-from dcf import SrimData
+from .mytypes import floatArray, precisionLitType
+from .dcf import SrimData

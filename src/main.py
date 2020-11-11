@@ -16,7 +16,7 @@ from srim.core import elementdb, element
 
 import typing as t
 from typing import Union, List, cast
-from mytypes import floatArray, precisionLitType
+from .mytypes import floatArray, precisionLitType
 
 if sys.version_info < (3, 8):
     from typing_extensions import Final
@@ -154,6 +154,8 @@ def calc_energy_damage(results: Results, units: precisionLitType = 'nm') -> 'flo
         dx = max(phon.depth) / 100.0  # units from pm to nm
     elif units in ('a', 'A', 'angstrom', 'angstroms', 'Angstrom', 'Angstroms'):
         dx = max(phon.depth) / 100.0  # units from pm to Angstroms
+    else:
+        raise ValueError("Units must be 'nm' or 'A'")
     energy_damage: floatArray = (phon.ions + phon.recoils) * dx  # add the arrays and multiply
     print(energy_damage)
     return energy_damage
@@ -165,6 +167,8 @@ def save_damage_energy(results: Results, units: precisionLitType = 'nm') -> None
         units_str: precisionLitType = 'nm'
     elif units in ('a', 'A', 'angstrom', 'angstroms', 'Angstrom', 'Angstroms'):
         units_str = 'A'
+    else:
+        raise ValueError("Units must be 'nm' or 'A'")
     energy_damage = calc_energy_damage(results, units_str)
     damage_table: floatArray = np.array([[phon.depth], [energy_damage / phon.num_ions]])
     print(damage_table)
@@ -178,6 +182,8 @@ def plot_damage_energy(results: Results, ax: plt.Axes, units: precisionLitType =
         units_str = 'nm'
     elif units in ('a', 'A', 'angstrom', 'angstroms', 'Angstrom', 'Angstroms'):
         units_str = 'Angstroms'
+    else:
+        raise ValueError("Units must be 'nm' or 'A'")
     energy_damage = calc_energy_damage(results, units)
     ax.plot(phon.depth, energy_damage / phon.num_ions, label=f'{plot_label}')
     ax.set_xlabel(f'Depth [{units_str}]')
