@@ -1,11 +1,26 @@
-""" Module for automating srim calculations"""
+""" Module for automating srim calculations
 
+"""
+import os
+import random
+import subprocess
+import shutil
+import distutils.spawn
+from pathlib import Path
+
+from .core.utils import (
+    check_input,
+    is_zero, is_zero_or_one, is_zero_to_two, is_zero_to_five,
+    is_one_to_seven, is_one_to_eight,
+    is_srim_degrees,
+    is_positive,
+    is_quoteless
+)
 
 from .output import Results, SRResults
-from .input import AutoTRIM, TRIMInput
+from .input import AutoTRIM, TRIMInput, SRInput
 from .config import DEFAULT_SRIM_DIRECTORY
 
-from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Union
 
 if TYPE_CHECKING:
@@ -78,22 +93,89 @@ class TRIMSettings(object):
         kwargs in :class:`srim.srim.TRIM`
     """
 
-    def __init__(self, **kwargs: Union[str, int, float]) -> None:
+    def __init__(self, **kwargs: Union[str, int, float]):
         """Initialize settings for a TRIM running"""
-        self._settings: Dict[str, Union[str, int, float]] = ...
+        self._settings: Dict[str, Union[str, int, float]] = {
+            'description': check_input(str, is_quoteless, kwargs.get('description', 'pysrim run')),
+            'reminders': check_input(int, is_zero_or_one, kwargs.get('reminders', 0)),
+            'autosave': check_input(int, is_zero_or_one, kwargs.get('autosave', 0)),
+            'plot_mode': check_input(int, is_zero_to_five, kwargs.get('plot_mode', 5)),
+            'plot_xmin': check_input(float, is_positive, kwargs.get('plot_xmin', 0.0)),
+            'plot_xmax': check_input(float, is_positive, kwargs.get('plot_xmax', 0.0)),
+            'ranges': check_input(int, is_zero_or_one, kwargs.get('ranges', 0)),
+            'backscattered': check_input(int, is_zero_or_one, kwargs.get('backscattered', 0)),
+            'transmit': check_input(int, is_zero_or_one, kwargs.get('transmit', 0)),
+            'sputtered': check_input(int, is_zero_or_one, kwargs.get('ranges', 0)),
+            'collisions': check_input(int, is_zero_to_two, kwargs.get('collisions', 0)),
+            'exyz': check_input(int, is_positive, kwargs.get('exyz', 0)),
+            'angle_ions': check_input(float, is_srim_degrees, kwargs.get('angle_ions', 0.0)),
+            'bragg_correction': float(kwargs.get('bragg_correction', 1.0)),  # TODO: Not sure what correct values are
+            'random_seed': check_input(int, is_positive, kwargs.get('random_seed', random.randint(0, 100000))),
+            'version': check_input(int, is_zero_or_one, kwargs.get('version', 0)),
+        }
 
-    def __getattr__(self, attr: str) -> Union[str, int, float]: ...
-    # return self._settings[attr]
+        if self.plot_xmin > self.plot_xmax:
+            raise ValueError('xmin must be <= xmax')
+
+    def __getattr__(self, attr: str) -> Union[str, float, int]:
+        return self._settings[attr]
+
+    @property
+    def plot_xmin(self) -> float:
+        xmin = self._settings['plot_xmin']
+        assert isinstance(xmin, float)
+        return xmin
+
+    @property
+    def plot_xmax(self) -> float:
+        xmax = self._settings['plot_xmax']
+        assert isinstance(xmax, float)
+        return xmax
 
 
 class TRIM(object):
+    """ Automate TRIM Calculations
 
-    def __init__(self, target: Target, ion: Ion, calculation: int = 1, number_ions: int = 1000, **kwargs: Union[str, int, float]) -> None:
-        self.settings: TRIMSettings = ...
-        self.calculation: int = ...
-        self.number_ions: int = ...
-        self.target: Target = ...
-        self.ion: Ion = ...
+    Parameters
+    ----------
+    target : :class:`srim.core.target.Target`
+        constructed target for TRIM calculation
+    ion : :class:`srim.core.ion.Ion`
+        constructed ion for TRIM calculation
+    calculation : :obj:`int`, optional
+        Default 1 quick KP calculation
+        (1) Ion Distribution and Quick Calculation of Damage (quick KP)
+        (2) Detailed Calculation with full Damage Cascades (full cascades)
+        (3) Monolayer Collision Steps / Surface Sputtering
+        (4) Ions with specific energy/angle/depth (quick KP damage) using TRIM.DAT
+        (5) Ions with specific energy/angle/depth (full cascades) using TRIM.DAT
+        (6) Recoil cascades from neutrons, etc. (full cascades) using TRIM.DAT
+        (7) Recoil cascades and monolayer steps (full cascades) using TRIM.DAT
+        (8) Recoil cascades from neutrons, etc. (quick KP damage) using TRIM.DAT
+    number_ions : :obj:`int`, optional
+        number of ions that you want to simulate. Default 1000. A lot
+        better than the 99999 default in TRIM...
+    kwargs :
+        See :class:`srim.srim.TRIMSettings` for available TRIM
+        options. There are many and none are required defaults are
+        appropriate for most cases.
+
+    Notes
+    -----
+        If you are doing a simulation with over 1,000 ions it is
+        recomended to split the calculaion into several smaller
+        calculations. TRIM has been known to unexpectedly crash mainly
+        due to memory usage.
+    """
+
+    def __init__(self, target: Target, ion: Ion, calculation: int = 1, number_ions: int = 1000,
+                 **kwargs: Union[str, float, int]) -> None:
+        """ Initialize TRIM calcualtion"""
+        self.settings = TRIMSettings(**kwargs)
+        self.calculation = check_input(int, is_one_to_seven, calculation)
+        self.number_ions = check_input(int, is_positive, number_ions)
+        self.target = target
+        self.ion = ion
 
     def _write_input_files(self) -> None:
         """ Write necissary TRIM input files for calculation """
@@ -101,9 +183,70 @@ class TRIM(object):
         TRIMInput(self).write()
 
     @staticmethod
-    def copy_output_files(src_directory: Union[str, Path], dest_directory: Union[str, Path], check_srim_output: bool = True) -> None: ...
+    def copy_output_files(src_directory: Union[str, Path], dest_directory: Union[str, Path],
+                          check_srim_output: bool = True) -> None:
+        """Copies known TRIM files in directory to destination directory
 
-    def run(self, srim_directory: Union[str, Path] = DEFAULT_SRIM_DIRECTORY) -> Results: ...
+        Parameters
+        ----------
+        src_directory : :obj:`str`
+            source directory to look for TRIM output files
+        dest_directory : :obj:`str`
+            destination directory to copy TRIM output files to
+        check_srim_output : :obj:`bool`, optional
+            ensure that all files exist
+        """
+        known_files = {
+            'TRIM.IN', 'PHONON.txt', 'E2RECOIL.txt', 'IONIZ.txt',
+            'LATERAL.txt', 'NOVAC.txt', 'RANGE.txt', 'VACANCY.txt',
+            'COLLISON.txt', 'BACKSCAT.txt', 'SPUTTER.txt',
+            'RANGE_3D.txt', 'TRANSMIT.txt', 'TRIMOUT.txt',
+            'TDATA.txt'
+        }
+
+        if not os.path.isdir(src_directory):
+            raise ValueError('src_directory must be directory')
+
+        if not os.path.isdir(dest_directory):
+            raise ValueError('dest_directory must be directory')
+
+        for known_file in known_files:
+            if os.path.isfile(os.path.join(
+                    src_directory, known_file)):
+                shutil.copy(os.path.join(
+                    src_directory, known_file), dest_directory)
+            elif os.path.isfile(os.path.join(src_directory, 'SRIM Outputs', known_file)) and check_srim_output:
+                shutil.move(os.path.join(
+                    src_directory, 'SRIM Outputs', known_file), dest_directory)
+
+    def run(self, srim_directory: Union[str, Path] = DEFAULT_SRIM_DIRECTORY) -> Results:
+        """Run configured srim calculation
+
+        This method:
+         - writes the input file to ``<srim_directory>/TRIM.IN``
+         - launches ``<srim_directory>/TRIM.exe``. Uses ``wine`` if available (needed for linux and osx)
+
+        Parameters
+        ----------
+        srim_directory : :obj:`str`, optional
+            path to srim directory. ``SRIM.exe`` should be located in
+            this directory. Default ``/tmp/srim/`` will absolutely
+            need to change for windows.
+        """
+        current_directory = os.getcwd()
+        try:
+            os.chdir(srim_directory)
+            self._write_input_files()
+            # Make sure compatible with Windows, OSX, and Linux
+            # If 'wine' command exists use it to launch TRIM
+            if distutils.spawn.find_executable("wine"):
+                subprocess.check_call(['wine', str(os.path.join('.', 'TRIM.exe'))])
+            else:
+                subprocess.check_call([str(os.path.join('.', 'TRIM.exe'))])
+            os.chdir(current_directory)
+            return Results(srim_directory)
+        finally:
+            os.chdir(current_directory)
 
 
 class SRSettings(object):
@@ -136,11 +279,16 @@ class SRSettings(object):
         kwargs in :class:`srim.srim.SR`
     """
 
-    def __init__(self, **args: Union[float, int, str]) -> None:
-        self._settings: Dict[str, Union[float, int, str]] = ...
+    def __init__(self, **args: Union[str, int, float]) -> None:
+        self._settings: Dict[str, Union[str, int, float]] = {
+            'energy_min': check_input(float, is_positive, args.get('energy_min', 1.0E3)),
+            'output_type': check_input(int, is_one_to_eight, args.get('output_type', 1)),
+            'output_filename': args.get('output_filename', 'SR_OUTPUT.txt'),
+            'correction': check_input(float, is_positive, args.get('correction', 1.0))
+        }
 
-    def __getattr__(self, attr: str) -> Union[str, int, float]: ...
-    # return self._settings[attr]
+    def __getattr__(self, attr: str) -> Union[str, int, float]:
+        return self._settings[attr]
 
 
 class SR(object):
@@ -159,10 +307,39 @@ class SR(object):
     """
 
     def __init__(self, layer: Layer, ion: Ion, **kwargs: Union[str, int, float]) -> None:
-        self.settings: Dict = ...
-        self.layer: Layer = ...
-        self.ion: Ion = ...
+        self.settings = SRSettings(**kwargs)
+        self.layer = layer
+        self.ion = ion
 
-    def _write_input_file(self) -> None: ...
+    def _write_input_file(self) -> None:
+        """ Write necissary SR input file for calculation """
+        SRInput(self).write()
 
-    def run(self, srim_directory: Union[str, Path] = DEFAULT_SRIM_DIRECTORY) -> SRResults: ...
+    def run(self, srim_directory: Union[str, Path] = DEFAULT_SRIM_DIRECTORY) -> SRResults:
+        """Run configured srim calculation
+
+        This method:
+         - writes the input file to ``<srim_directory/SR Module/TRIM.IN``
+         - launches ``<srim_directory>/SR Module/SRModule.exe``. Uses ``wine`` if available (needed for linux and osx)
+
+        Parameters
+        ----------
+        srim_directory : :obj:`str`, optional
+            path to srim directory. ``SRIM.exe`` should be located in
+            this directory. Default ``/tmp/srim`` will absolutely need
+            to be changed for windows.
+        """
+        current_directory = os.getcwd()
+        try:
+            os.chdir(os.path.join(srim_directory, 'SR Module'))
+            self._write_input_file()
+            # Make sure compatible with Windows, OSX, and Linux
+            # If 'wine' command exists use it to launch TRIM
+            if distutils.spawn.find_executable("wine"):
+                subprocess.check_call(['wine', str(os.path.join('.', 'SRModule.exe'))])
+            else:
+                subprocess.check_call([str(os.path.join('.', 'SRModule.exe'))])
+
+            return SRResults(os.path.join(srim_directory, 'SR Module'))
+        finally:
+            os.chdir(current_directory)

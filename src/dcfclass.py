@@ -116,7 +116,7 @@ class DamageStats(NamedTuple):
 # TODO see main.py for getting element classes. Need to convert to ElemClass or not? Use Dacite for convert via dict?
 # or inherit from it?
 elem_ce_dict = ElemClass(E_d=25.0, lattice=3.0, surface=4.23, atomic_num=58, atomic_mass=140.1)
-elem_u_dict = {'E_d': 25.0, 'lattice': 3.0, 'surface': 5.42, 'atomic_num': 92, 'atomic_mass': 238.0}
+elem_u_dict: ElemTD = {'E_d': 25.0, 'lattice': 3.0, 'surface': 5.42, 'atomic_num': 92, 'atomic_mass': 238.0}
 elem_th_dict = {'E_d': 25.0, 'lattice': 3.0, 'surface': 5.93, 'atomic_num': 90, 'atomic_mass': 232.0}
 elem_o_dict = ElemClass(E_d=28.0, lattice=3.0, surface=2.00, atomic_num=8, atomic_mass=15.99)
 elem_si_dict = {'E_d': 15.0, 'lattice': 2.0, 'surface': 4.70, 'atomic_num': 14, 'atomic_mass': 28.08}
@@ -150,16 +150,15 @@ def make_element_subfolder_name(layer: Layer, ion: Ion,
     layer_width_um = f'{layer.width / 10000:.0f}um'
     ion_energy_kev = f'{ion.energy / 1000:.0f}keV'
 
-    if precision == 'um' or precision == 'micro':
+    if precision in ['um', 'micro']:
         layer_width = layer_width_um
-    elif precision == 'nm' or precision == 'nano':
+    elif precision in ['nm', 'nano']:
         layer_width = layer_width_nm
     else:
         layer_width = layer.width
 
-    data_subfolder_name = Path(f"{element_list_str}_{layer_width}_{ion.symbol}@{ion_energy_kev}")
     # print(data_subfolder_name)
-    return data_subfolder_name
+    return Path(f"{element_list_str}_{layer_width}_{ion.symbol}@{ion_energy_kev}")
 
 
 cwd_path = Path(R'.')
@@ -278,7 +277,7 @@ class SrimResults():
 
     def _get_layer_depths(self) -> List[int]:
         if self.layers is not None:
-            layer_depths = [layer.width / self.ratio_A_to_units for layer in self.layers]
+            layer_depths = [layer.width / self.ratio_A_to_units for layer in self.layers]  # sourcery skip
             return layer_depths
         else:
             raise AttributeError("Layer depth cannot be calculated unless Target is given")
@@ -311,9 +310,11 @@ class SrimResults():
         return cast(floatArray, depth_damage)  # up to depth if given otherwise all
 
     def make_depth_damage_table(self) -> str:
+        # sourcery skip: inline-immediately-returned-variable
         """convert data to table from printing"""
         headers = ['depth', 'damage']
-        table = tabulate(self.trunc_depth_damage_array().transpose(), headers, tablefmt="fancy_grid", colalign=("right",))
+        table = tabulate(self.trunc_depth_damage_array().transpose(),
+                         headers, tablefmt="fancy_grid", colalign=("right",))
         return table
 
     def make_depth_damage_csv(self, filename: Union[Path, str] = "depth_damage.csv") -> str:
@@ -391,10 +392,10 @@ class SrimResults():
         phon = self.results.phonons
         depth_array = phon.depth[:limit] / self.ratio_A_to_units
 
-        if plot_type == 'total':
-            damage = energy_damage
-        elif plot_type == 'per_ion':
+        if plot_type == 'per_ion':
             damage = np.divide(energy_damage, phon.num_ions)
+        elif plot_type == 'total':
+            damage = energy_damage
         else:
             raise NameError('plot_type must be "total" or "per_ion"')
 
@@ -413,10 +414,7 @@ class SrimResults():
         fig, ax = self._create_damage_depth_fig(plot_type=plot_type)
         self._add_damage_depth_line(ax=ax, plot_type=plot_type)
 
-        if self.depth == 0:
-            depth_txt = ""
-        else:
-            depth_txt = f"_to_{self.depth}{self.units}"
+        depth_txt = f"_to_{self.depth}{self.units}" if self.depth != 0 else ""
 
         if filename is None:
             filename = Path(f'{self.ion.symbol}@{self.ion_energy}_damagevsdepth_{plot_type}{depth_txt}.png')
@@ -457,7 +455,7 @@ class MultiSrimResults():
         self.savepath = Path(savepath)
         self.result_list: Sequence[SrimResults]
         try:
-            if isinstance(inp, Path) or isinstance(inp, str):
+            if isinstance(inp, (Path, str)):
                 inp = Path(inp)
                 self.result_list = [SrimResults(x, depth=self.depth) for x in inp.iterdir() if inp.is_dir()]
             elif isinstance(inp, typ.Sequence) and all(isinstance(x, (Path, Results)) for x in inp):
@@ -544,7 +542,9 @@ class MultiSrimResults():
         legend2 = 'Depth of max damage'
         ion_energies = [res.ion_energy for res in self.result_list]
         max_damage_depth = [res.get_damage_stats().max_depth for res in self.result_list]
-        line2 = sex_ax.plot(ion_energies[:len(max_damage_depth)], max_damage_depth, color='g', label='{}'.format(legend2))
+        line2 = sex_ax.plot(
+            ion_energies[: len(max_damage_depth)],
+            max_damage_depth, color='g', label='{}'.format(legend2))
 
         if depth_marker != 0:
             max_max_depth = max(max_damage_depth)
@@ -789,9 +789,9 @@ def combined_srim(ion: Ion,
 
 def create_ion_list(ion_name: Literal['H', 'He', 'Li'],
                     energy_list: Union[Sequence[int], Set[int]],
-                    units: Literal['ev', 'kev', 'mev']
+                    units: Literal['ev', 'kev', 'mev'],
                     ) -> List[Ion]:
-    ion_list = [Ion(f'{ion_name}', energy=x * 1000) for x in energy_list]
+    ion_list = [Ion(f'{ion_name}', energy=x * 1000) for x in energy_list]  # sourcery skip
     return ion_list
 
 

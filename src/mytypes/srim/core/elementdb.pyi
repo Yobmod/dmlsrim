@@ -1,18 +1,20 @@
+from __future__ import annotations
 import yaml
 import os
 import re
-
 import srim
+from typing import Dict, Any, Union, TYPE_CHECKING
 
-from typing import Union, TYPE_CHECKING
+from .types import element_TD
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # to prevent import cycle
     from .element import Element
 
 
-def create_elementdb():
+def create_elementdb() -> Dict[str, Any]:
     dbpath = os.path.join(srim.__path__[0], 'data', 'elements.yaml')
-    return yaml.load(open(dbpath, "r"), Loader=yaml.FullLoader)
+    db_dict: Dict[str, element_TD] = yaml.load(open(dbpath, "r"), Loader=yaml.FullLoader)
+    return db_dict
 
 
 class ElementDB(object):
@@ -20,7 +22,7 @@ class ElementDB(object):
     _db = create_elementdb()
 
     @classmethod
-    def lookup(cls, identifier: Union[str, int]) -> 'Element':
+    def lookup(cls, identifier: Union[str, int]) -> element_TD:
         """ Looks up element from symbol, name, or atomic number
 
         Parameters
@@ -44,32 +46,34 @@ class ElementDB(object):
             type(identifier), identifier))
 
     @classmethod
-    def _lookup_symbol(cls, symbol: str) -> 'Element':
+    def _lookup_symbol(cls, symbol: str) -> element_TD:
         """ Looks up symbol in element database
 
         :param str symbol: Symbol of atomic element
         """
-        return cls._db[symbol]
+        db_symbol: element_TD = cls._db[symbol]
+        return db_symbol
 
     @classmethod
-    def _lookup_name(cls, name: str) -> 'Element':
+    def _lookup_name(cls, name: str) -> element_TD:
         """ Looks element in database by name
 
         :param str name: (Full) Name of atomic element (British spelling)
         """
         for symbol in cls._db:
             if cls._db[symbol]['name'] == name:
-                return cls._db[symbol]
+                db_symbol: element_TD = cls._db[symbol]
+                return db_symbol
         raise KeyError('name:{} does not exist'.format(name))
 
     @classmethod
-    def _lookup_atomic_number(cls, atomic_number: int) -> 'Element':
+    def _lookup_atomic_number(cls, atomic_number: int) -> element_TD:
         """ Look up element in database by atomic number (Z)
 
         :param int atomic_number: Atomic number of atomic element
         """
         for symbol in cls._db:
             if cls._db[symbol]['z'] == atomic_number:
-                return cls._db[symbol]
-        raise IndexError(
-            'atomic number:{} does not exist'.format(atomic_number))
+                db_symbol: element_TD = cls._db[symbol]
+                return db_symbol
+        raise IndexError(f'atomic number:{atomic_number} does not exist')

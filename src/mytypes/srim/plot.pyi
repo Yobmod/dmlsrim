@@ -1,4 +1,8 @@
-def plot_damage_energy(results, ax):
+from .output import Results, SRResults
+from matplotlib import axes
+
+
+def plot_damage_energy(results: Results, ax: axes.Axes):
     """Plot damage energy (ions + recoils) per unit depth
 
     Parameters
@@ -9,7 +13,7 @@ def plot_damage_energy(results, ax):
         matplotlib axes to plot into
     """
     phon = results['phonons']
-    dx = max(phon.depth) / 100.0 # to units of Angstroms
+    dx = max(phon.depth) / 100.0  # to units of Angstroms
     energy_damage = (phon.ions + phon.recoils) * dx
     ax.plot(phon.depth, energy_damage / phon.num_ions, label='{}'.format(folder))
     return sum(energy_damage)
@@ -26,7 +30,7 @@ def plot_ionization(results, ax):
         matplotlib axes to plot into
     """
     ioniz = results['ioniz']
-    dx = max(ioniz.depth) / 100.0 # to units of Angstroms
+    dx = max(ioniz.depth) / 100.0  # to units of Angstroms
     ax.plot(ioniz.depth, ioniz.ions, label='Ionization from Ions')
     ax.plot(ioniz.depth, ioniz.recoils, label='Ionization from Recoils')
 

@@ -1,4 +1,5 @@
 import re
+from typing import Dict, List, Mapping, Union
 
 from .utils import (
     check_input,
@@ -6,10 +7,15 @@ from .utils import (
     is_zero_or_one
 )
 from .element import Element
+from .types import elemParamsType
+
 
 class Material(object):
     """ Material Representation """
-    def __init__(self, elements, density, phase=0):
+
+    def __init__(
+        self, elements: Union[Mapping[Element, elemParamsType], Mapping[str, elemParamsType]],
+            density: float, phase: int = 0) -> None:
         """Create Material from elements, density, and phase
 
         Parameters
@@ -65,11 +71,13 @@ class Material(object):
         """
         self.phase = phase
         self.density = density
-        self.elements = {}
+        self.elements: Dict[Element, Dict[str, float]] = {}
 
         stoich_sum = 0.0
-        for element in elements:
-            values = elements[element]
+        for element, values in elements.items():
+
+            if not isinstance(element, Element):
+                element = Element(element)
 
             if isinstance(values, dict):
                 stoich = values['stoich']
@@ -98,21 +106,17 @@ class Material(object):
 
             stoich_sum += stoich
 
-            if not isinstance(element, Element):
-                element = Element(element)
-
             self.elements.update({element: {
                 'stoich': stoich, 'E_d': e_disp,
                 'lattice': lattice, 'surface': surface
             }})
 
         # Normalize the Chemical Composisiton to 1.0
-        for element in self.elements:
-            self.elements[element]['stoich'] /= stoich_sum
+        for validated_element in self.elements.values():
+            validated_element['stoich'] /= stoich_sum
 
-
-    @classmethod
-    def from_formula(cls, chemical_formula, density, phase=0):
+    @ classmethod
+    def from_formula(cls, chemical_formula: str, density: float, phase: int = 0) -> 'Material':
         """ Creation Material from chemical formula string and density
 
         Parameters
@@ -137,11 +141,11 @@ class Material(object):
         elements = cls._formula_to_elements(chemical_formula)
         return Material(elements, density, phase)
 
-    @staticmethod
-    def _formula_to_elements(chemical_formula):
+    @ staticmethod
+    def _formula_to_elements(chemical_formula: str) -> Dict[Element, Dict[str, float]]:
         """ Convert chemical formula to elements """
-        single_element = '([A-Z][a-z]?)([0-9]*(?:\.[0-9]*)?)?'
-        elements = {}
+        single_element = r'([A-Z][a-z]?)([0-9]*(?:\.[0-9]*)?)?'
+        elements: Dict[Element, Dict[str, float]] = {}
 
         if re.match('^(?:{})+$'.format(single_element), chemical_formula):
             matches = re.findall(single_element, chemical_formula)
@@ -160,45 +164,48 @@ class Material(object):
             if fraction == '':
                 fraction = 1.0
 
-            elements.update({element: float(fraction)})
+            elements.update({element: {'stoich': float(fraction)}})
         return elements
 
-    @property
-    def density(self):
+    @ property
+    def density(self) -> float:
         """Material's density"""
         return self._density
 
-    @density.setter
-    def density(self, value):
-        self._density = check_input(float, is_positive, value)
+    @ density.setter
+    def density(self, value: float) -> None:
+        self._density: float = check_input(float, is_positive, value)
 
-    @property
-    def phase(self):
+    @ property
+    def phase(self) -> int:
         """Material's phase"""
         return self._phase
 
-    @phase.setter
-    def phase(self, value):
-        self._phase = check_input(int, is_zero_or_one, value)
+    @ phase.setter
+    def phase(self, value: int) -> None:
+        self._phase: int = check_input(int, is_zero_or_one, value)
 
-    @property
-    def chemical_formula(self):
+    @ property
+    def chemical_formula(self) -> str:
         """Material's chemical formula"""
-        return ' '.join('{} {:1.2f}'.format(element.symbol, self.elements[element]['stoich']) for element in self.elements)
+        return " ".join(f"{elem.symbol} {params['stoich']:1.2f}" for elem, params in self.elements.items())
 
-    def __repr__(self):
-        material_str = "<Material formula:{} density:{:2.3f}>"
-        return material_str.format(self.chemical_formula, self.density)
+    def __repr__(self) -> str:
+        return f"<Material formula:{self.chemical_formula} density:{self.density:2.3f}>"
 
-    def __eq__(self, material):
-        if abs(self.density - material.density) > 1e-6:
+    def __eq__(self, material: object) -> bool:
+
+        if not isinstance(material, Material):
             return False
 
-        if len(self.elements) != len(material.elements):
+        elif abs(self.density - material.density) > 1e-6:
+            return False
+
+        elif len(self.elements) != len(material.elements):
             return False
 
         for element in self.elements:
-            if not element in material.elements:
+            if element not in material.elements:
                 return False
             for prop in self.elements[element]:
                 if abs(self.elements[element][prop] - material.elements[element][prop]) > 1e-6:

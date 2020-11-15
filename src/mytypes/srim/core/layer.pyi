@@ -1,5 +1,8 @@
+from typing import List, Mapping, Optional, Union, Dict
 from .material import Material
 from .utils import check_input, is_positive
+from .types import elemParamsType
+from .element import Element
 
 
 class Layer(Material):
@@ -41,7 +44,9 @@ class Layer(Material):
     }, density=3.21, width=10000.0)
     """
 
-    def __init__(self, elements, density, width, phase: int = 0, name=None):
+    def __init__(self,
+                 elements: Union[Mapping[Element, elemParamsType], Mapping[str, elemParamsType]],
+                 density: float, width: float, phase: int = 0, name: str = ""):
         """Creation of Layer from elements, density, width, phase, and
 name"""
         self.width = width
@@ -49,7 +54,13 @@ name"""
         super(Layer, self).__init__(elements, density, phase)
 
     @classmethod
-    def from_formula(cls, chemical_formula, density, width, phase=0, name=None):
+    def from_formula_and_params(cls,
+                                chemical_formula: str,
+                                density: float,
+                                width: float,
+                                phase: int = 0,
+                                name: str = "",
+                                ) -> 'Layer':
         """ Creation Layer from chemical formula string, density, width, phase, and name
 
         Parameters
@@ -75,24 +86,25 @@ name"""
         return Layer(elements, density, width, phase, name)
 
     @property
-    def width(self):
+    def width(self) -> float:
         """Layer's width"""
         return self._width
 
     @width.setter
-    def width(self, value):
-        self._width = check_input(float, is_positive, value)
+    def width(self, value: float) -> None:
+        self._width: float = check_input(float, is_positive, value)
 
     @property
-    def name(self):
+    def name(self) -> str:
         """Layer's Name"""
         if self._name:
             return self._name
-        return self.chemical_formula
+        else:
+            return self.chemical_formula
 
     @name.setter
-    def name(self, value):
+    def name(self, value: str) -> None:
         self._name = str(value)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<Layer material:{} width:{}>".format(self.chemical_formula, self.width)

@@ -14,11 +14,12 @@ numpy = [
     {version='==1.19.3', markers="sys_platform=='win64'"},
     {git = 'https://github.com/numpy/numpy.git', markers="sys_platform=='linux'"},
 ]
-
+pysrim = "*"
+pydantic = "*"
 # data-science-types = "*"
 # numpy-stubs = "*"
 # pillow = "*"
-pysrim = "*"
+
 # pysimplegui = "*"
 # pytoml = "*"
 python-dotenv = "*"
@@ -27,13 +28,13 @@ python-dotenv = "*"
 # sklearn = "*"
 colorama = "*"
 termcolor = "*"
-chempy = "*"
-pyyaml = "*"
+# chempy = "*"
+# pyyaml = "*"
 # returns = "*"
 typer = {extras = ["all"], version = "*"}
 dacite = "*"
-dill = "*"
-toml = "*"
+# dill = "*"
+# toml = "*"
 
 pandas = "*"
 jupyter = "*"

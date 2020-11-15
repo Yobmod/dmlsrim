@@ -1,4 +1,6 @@
+from typing import Union
 from .elementdb import ElementDB
+
 
 class Element(object):
     """ Element from periodic table
@@ -27,52 +29,57 @@ class Element(object):
     >>> Element('He', 4.3)
     <Element symbol:He name:Helium mass:4.30>
     """
-    def __init__(self, identifier, mass=None):
-        """Initializes element from identifier and mass"""
-        element = ElementDB.lookup(identifier)
 
-        self._symbol = element['symbol']
-        self._name = element['name']
-        self._atomic_number = element['z']
+    def __init__(self, identifier: Union[str, int], mass: float = 0.0):
+        """Initializes element from identifier and mass
+        Identifier: str | int (symbol, name or atomic_number)"""
+        element_dict = ElementDB.lookup(identifier)
 
-        if mass:
-            self._mass = mass
-        else:
-            self._mass = element['mass']
+        self._symbol = element_dict['symbol']
+        self._name = element_dict['name']
+        self._atomic_number = element_dict['z']
+        self._mass = mass or element_dict['mass']
 
-    def __eq__(self, element):
-        if (self.symbol == element.symbol and
-            self.name == element.name and
-            self.atomic_number == element.atomic_number and
-            self.mass == element.mass):
+    def __eq__(self, other_element: object) -> bool:
+        if not isinstance(other_element, Element):
+            return False
+        elif (self.symbol == other_element.symbol and
+              self.name == other_element.name and
+              self.atomic_number == other_element.atomic_number and
+              self.mass == other_element.mass):
             return True
-        return False
+        else:
+            return False
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<Element symbol:{} name:{} mass:{:2.2f}>".format(
             self.symbol, self.name, self.mass)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return sum(hash(item) for item in [
             self._mass, self._symbol, self._name, self.atomic_number
         ])
 
     @property
-    def symbol(self):
+    def symbol(self) -> str:
         """Element's atomic symbol"""
+        assert isinstance(self._symbol, str)
         return self._symbol
 
     @property
-    def name(self):
+    def name(self) -> str:
         """Element's formal name"""
+        assert isinstance(self._name, str)
         return self._name
 
     @property
-    def atomic_number(self):
+    def atomic_number(self) -> int:
         """Element's atomic number"""
+        assert isinstance(self._atomic_number, int)
         return self._atomic_number
 
     @property
-    def mass(self):
+    def mass(self) -> float:
         """Element's mass"""
+        assert isinstance(self._mass, float)
         return self._mass

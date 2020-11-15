@@ -69,7 +69,7 @@ print(f"Updating path to \n {venv_path}")
 
 with open(".vscode/settings.json", "r") as f:
     settings = json.load(f)
-    settings["python.pythonPath"] = venv_path
+    settings["python.pythonPath"] = venv_path + R"\\scripts\\python.exe"
 
 with open(".vscode/settings.json", "w") as f:
     json.dump(settings, f, sort_keys=True, indent=4)
