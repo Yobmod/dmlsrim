@@ -15,7 +15,7 @@ color_init(autoreset=True)
 AssertionErrorColor = Fore.GREEN + Back.RED
 
 
-@pytest.mark.paths
+# @pytest.mark.paths
 def test_srim_directory_path() -> None:
     """Test if srim directory used is found / exists"""
 
