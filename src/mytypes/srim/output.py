@@ -3,9 +3,11 @@
 TODO: Read header information
 """
 import os
+from pathlib import Path
 import re
-from io import BytesIO
-from typing import Dict, NoReturn, Union
+from io import BytesIO, TextIOWrapper
+from re import RegexFlag
+from typing import Any, Dict, Iterable, Iterator, List, Match, NoReturn, Optional, Sequence, TextIO, Tuple, Union
 
 import numpy as np
 
@@ -14,19 +16,19 @@ from .core.ion import Ion
 # Valid double_regex 4, 4.0, 4.0e100
 double_regex = r'[-+]?\d+\.?\d*(?:[eE][-+]?\d+)?'
 symbol_regex = r'[A-Z][a-z]?'
-int_regex = '[+-]?\d+'
+int_regex = r'[+-]?\d+'
 
 
 class SRIMOutputParseError(Exception):
-    """SRIM error reading output file"""
+    """SRIM error reading output file with regex"""
     pass
 
 
 class SRIM_Output(object):
-    def _read_name(self, output) -> NoReturn:
+    def _read_name(self, output: bytes) -> NoReturn:
         raise NotImplementedError()
 
-    def _read_ion(self, output: bytes):
+    def _read_ion(self, output: bytes) -> Ion:
         ion_regex = r'Ion\s+=\s+({})\s+Energy\s+=\s+({})\s+keV'.format(
             symbol_regex, double_regex)
         match = re.search(ion_regex.encode('utf-8'), output)
@@ -34,9 +36,10 @@ class SRIM_Output(object):
             symbol = str(match.group(1).decode('utf-8'))
             energy = float(match.group(2))  # keV
             return Ion(symbol, 1000.0 * energy)
-        raise SRIMOutputParseError("unable to extract ion from file")
+        else:
+            raise SRIMOutputParseError("unable to extract ion from file")
 
-    def _read_target(self, output):
+    def _read_target(self, output: bytes) -> None:  # should return Target?
         match_target = re.search(br'(?<=====\r\n)Layer\s+\d+\s+:.*?(?=====)', output, re.DOTALL)
         if match_target:
             print(match_target.group(0))
@@ -58,21 +61,21 @@ class SRIM_Output(object):
                     # We know that elements will match
                     layers_elements.append(re.findall(element_regex_bytes, layer[5]))
 
-                raise NotImpementedError()
+                raise NotImplementedError()
 
                 import pytest
                 pytest.set_trace()
 
         raise SRIMOutputParseError("unable to extract total target from file")
 
-    def _read_num_ions(self, output):
+    def _read_num_ions(self, output: bytes) -> int:
         match = re.search(br'Total Ions calculated\s+=(\d+.\d+)', output)
         if match:
             # Cast string -> float -> round down to nearest int
             return int(float(match.group(1)))
         raise SRIMOutputParseError("unable to extract total ions from file")
 
-    def _read_table(self, output):
+    def _read_table(self, output: bytes) -> np.ndarray[float]:
         match = re.search((
             br'=+(.*)'
             br'-+(?:\s+-+)+'
@@ -81,12 +84,13 @@ class SRIM_Output(object):
 
         if match:
             # Headers TODO: name the columns in table
-            header = None
+            # header = None
 
             # Data
-            data = np.genfromtxt(BytesIO(output[match.end():]), max_rows=100)
+            data: np.ndarray[float] = np.genfromtxt(BytesIO(output[match.end():]), max_rows=100)
             return data
-        raise SRIMOutputParseError("unable to extract table from file")
+        else:
+            raise SRIMOutputParseError("unable to extract table from file")
 
 
 class Results(object):
@@ -108,13 +112,13 @@ class Results(object):
       - ``RANGE.txt`` handled by :class:`srim.output.Range`
     """
 
-    def __init__(self, directory):
+    def __init__(self, directory: Union[str, Path]) -> None:
         """ Retrives all the calculation files in a given directory"""
         self.ioniz = Ioniz(directory)
         self.vacancy = Vacancy(directory)
 
         try:
-            self.novac = NoVacancy(directory)
+            self.novac: Optional[NoVacancy] = NoVacancy(directory)
         except ValueError:
             self.novac = None
 
@@ -134,21 +138,21 @@ class Ioniz(SRIM_Output):
          filename for Ioniz. Default ``IONIZ.txt``
     """
 
-    def __init__(self, directory, filename='IONIZ.txt'):
+    def __init__(self, directory: Union[str, Path], filename: str = 'IONIZ.txt') -> None:
         with open(os.path.join(directory, filename), 'rb') as f:
             output = f.read()
             ion = self._read_ion(output)
             num_ions = self._read_num_ions(output)
-            data = self._read_table(output)
+            data: np.ndarray[float] = self._read_table(output)
 
         self._ion = ion
         self._num_ions = num_ions
-        self._depth = data[:, 0]
-        self._ions = data[:, 1]
-        self._recoils = data[:, 2]
+        self._depth: float = data[:, 0]
+        self._ions: float = data[:, 1]
+        self._recoils: float = data[:, 2]
 
     @property
-    def ion(self):
+    def ion(self) -> Ion:
         """ Ion used in SRIM calculation
 
         **mass** could be wrong
@@ -156,23 +160,23 @@ class Ioniz(SRIM_Output):
         return self._ion
 
     @property
-    def num_ions(self):
+    def num_ions(self) -> int:
         """ Number of Ions in SRIM simulation """
         return self._num_ions
 
     @property
-    def depth(self):
+    def depth(self) -> float:
         """ Depth [Ang] of bins in SRIM Calculation """
         return self._depth
 
     @property
-    def ions(self):
+    def ions(self) -> float:
         """Ionization energy [eV/(Angstrom Ion)] lost to electronic stopping
         in incident ions"""
         return self._ions
 
     @property
-    def recoils(self):
+    def recoils(self) -> float:
         """Ionization energy [eV/(Angstrom Ion)] lost to electronic stopping
         in recoil ions"""
         return self._recoils
@@ -189,7 +193,7 @@ class Vacancy(SRIM_Output):
          filename for Vacancy. Default ``VACANCY.txt``
     """
 
-    def __init__(self, directory, filename='VACANCY.txt'):
+    def __init__(self, directory: Union[str, Path], filename: str = 'VACANCY.txt') -> None:
         with open(os.path.join(directory, filename), 'rb') as f:
             output = f.read()
             ion = self._read_ion(output)
@@ -198,12 +202,12 @@ class Vacancy(SRIM_Output):
 
         self._ion = ion
         self._num_ions = num_ions
-        self._depth = data[:, 0]
-        self._ion_knock_ons = data[:, 1]
-        self._vacancies = data[:, 2:]
+        self._depth: float = data[:, 0]
+        self._ion_knock_ons: float = data[:, 1]
+        self._vacancies: float = data[:, 2:]
 
     @property
-    def ion(self):
+    def ion(self) -> Ion:
         """ Ion used in SRIM calculation
 
         **mass** could be wrong
@@ -211,22 +215,22 @@ class Vacancy(SRIM_Output):
         return self._ion
 
     @property
-    def num_ions(self):
+    def num_ions(self) -> int:
         """Number of Ions in SRIM simulation"""
         return self._num_ions
 
     @property
-    def depth(self):
+    def depth(self) -> float:
         """Depth [Ang] of bins in SRIM Calculation"""
         return self._depth
 
     @property
-    def knock_ons(self):
+    def knock_ons(self) -> float:
         """Vacancies produced [Vacancies/(Angstrom-Ion) by ion]"""
         return self._ion_knock_ons
 
     @property
-    def vacancies(self):
+    def vacancies(self) -> float:
         """Vacancies [Vacancies/(Angstrom-Ion)] produced of element in layer"""
         return self._vacancies
 
@@ -242,7 +246,7 @@ class NoVacancy(SRIM_Output):
          filename for NoVacancy. Default ``NOVAC.txt``
     """
 
-    def __init__(self, directory, filename='NOVAC.txt'):
+    def __init__(self, directory: Union[str, Path], filename: str = 'NOVAC.txt'):
         with open(os.path.join(directory, filename), 'rb') as f:
             output = f.read()
 
@@ -257,11 +261,11 @@ class NoVacancy(SRIM_Output):
 
         self._ion = ion
         self._num_ions = num_ions
-        self._depth = data[:, 0]
-        self._number = data[:, 1]
+        self._depth: float = data[:, 0]
+        self._number: float = data[:, 1]
 
     @property
-    def ion(self):
+    def ion(self) -> Ion:
         """ Ion used in SRIM calculation
 
         **mass** could be wrong
@@ -269,17 +273,17 @@ class NoVacancy(SRIM_Output):
         return self._ion
 
     @property
-    def num_ions(self):
+    def num_ions(self) -> int:
         """Number of Ions in SRIM simulation"""
         return self._num_ions
 
     @property
-    def depth(self):
+    def depth(self) -> float:
         """Depth [Ang] of bins in SRIM Calculation"""
         return self._depth
 
     @property
-    def number(self):
+    def number(self) -> float:
         """Replacement Collisions [Number/(Angstrom-Ion)]"""
         return self._number
 
@@ -295,7 +299,7 @@ class EnergyToRecoils(SRIM_Output):
          filename for EnergyToRecoils. Default ``E2RECOIL.txt``
     """
 
-    def __init__(self, directory, filename='E2RECOIL.txt'):
+    def __init__(self, directory: Union[str, Path], filename: str = 'E2RECOIL.txt') -> None:
         with open(os.path.join(directory, filename), 'rb') as f:
             output = f.read()
             ion = self._read_ion(output)
@@ -304,12 +308,12 @@ class EnergyToRecoils(SRIM_Output):
 
         self._ion = ion
         self._num_ions = num_ions
-        self._depth = data[:, 0]
-        self._ions = data[:, 1]
-        self._recoils = data[:, 2:]
+        self._depth: float = data[:, 0]
+        self._ions: float = data[:, 1]
+        self._recoils: float = data[:, 2:]
 
     @property
-    def ion(self):
+    def ion(self) -> Ion:
         """Ion used in SRIM calculation
 
         **mass** could be wrong
@@ -317,22 +321,22 @@ class EnergyToRecoils(SRIM_Output):
         return self._ion
 
     @property
-    def num_ions(self):
+    def num_ions(self) -> int:
         """Number of Ions in SRIM simulation"""
         return self._num_ions
 
     @property
-    def depth(self):
+    def depth(self) -> float:
         """Depth [Ang] of bins in SRIM Calculation"""
         return self._depth
 
     @property
-    def ions(self):
+    def ions(self) -> float:
         """Energy [eV/(Angstrom-Ion)] transfered to material through ion collisions"""
         return self._ions
 
     @property
-    def absorbed(self):
+    def absorbed(self) -> float:
         """Energy [eV/(Angstrom-Ion)] absorbed from collisions with Atom
 
         TODO: fix terminology
@@ -351,21 +355,21 @@ class Phonons(SRIM_Output):
          filename for Phonons. Default ``PHONON.txt``
     """
 
-    def __init__(self, directory, filename='PHONON.txt'):
+    def __init__(self, directory: Union[str, Path], filename: str = 'PHONON.txt'):
         with open(os.path.join(directory, filename), 'rb') as f:
             output = f.read()
             ion = self._read_ion(output)
             num_ions = self._read_num_ions(output)
-            data = self._read_table(output)
+            data: np.ndarray[float] = self._read_table(output)
 
         self._ion = ion
         self._num_ions = num_ions
-        self._depth = data[:, 0]
-        self._ions = data[:, 1]
-        self._recoils = data[:, 2]
+        self._depth: np.ndarray[float] = data[:, 0]
+        self._ions: np.ndarray[float] = data[:, 1]
+        self._recoils: np.ndarray[float] = data[:, 2]
 
     @property
-    def ion(self):
+    def ion(self) -> Ion:
         """Ion used in SRIM calculation
 
         **mass** could be wrong
@@ -373,22 +377,22 @@ class Phonons(SRIM_Output):
         return self._ion
 
     @property
-    def num_ions(self):
+    def num_ions(self) -> int:
         """Number of Ions in SRIM simulation"""
         return self._num_ions
 
     @property
-    def depth(self):
+    def depth(self) -> np.ndarray[float]:
         """Depth [Ang] of bins in SRIM Calculation"""
         return self._depth
 
     @property
-    def ions(self):
+    def ions(self) -> np.ndarray[float]:
         """Number of phonons [Phonons/(Angstrom Ion)] created from ions collisions"""
         return self._ions
 
     @property
-    def recoils(self):
+    def recoils(self) -> np.ndarray[float]:
         """Number of phonons [Phonons/(Angstrom Ion)] created from recoils
         resulting from ion collisions"""
         return self._recoils
@@ -405,7 +409,7 @@ class Range(SRIM_Output):
          filename for Range. Default ``RANGE.txt``
     """
 
-    def __init__(self, directory, filename='RANGE.txt'):
+    def __init__(self, directory: Union[str, Path], filename: str = 'RANGE.txt') -> None:
         with open(os.path.join(directory, filename), 'rb') as f:
             output = f.read()
             ion = self._read_ion(output)
@@ -419,7 +423,7 @@ class Range(SRIM_Output):
         self._elements = data[:, 2:]
 
     @property
-    def ion(self):
+    def ion(self) -> Ion:
         """Ion used in SRIM calculation
 
         **mass** could be wrong
@@ -427,7 +431,7 @@ class Range(SRIM_Output):
         return self._ion
 
     @property
-    def num_ions(self):
+    def num_ions(self) -> int:
         """Number of Ions in SRIM simulation"""
         return self._num_ions
 
@@ -449,7 +453,6 @@ class Range(SRIM_Output):
 
 class Backscat(object):
     """ The kinetics of all backscattered ions (energy, location and trajectory)
-
     TODO: one day to be implemented! submit pull request please!
     """
     pass
@@ -489,7 +492,7 @@ class Collision:
 
     """
 
-    def __init__(self, directory, filename='COLLISON.txt'):
+    def __init__(self, directory: Union[str, Path], filename: str = 'COLLISON.txt') -> None:
         self.filename = os.path.join(directory, filename)
 
         with open(self.filename, encoding="latin-1") as f:
@@ -497,7 +500,7 @@ class Collision:
 
         self._ion_index = buffered_findall(self.filename, b"  Ion    Energy")
 
-    def _read_header(self, f):
+    def _read_header(self, f: TextIO) -> List[str]:
         """Read Header of COLLISON.txt
 
         Currently we do nothing with the header
@@ -512,7 +515,7 @@ class Collision:
             header.append(line)
         return header
 
-    def _read_ion(self, ion_str):
+    def _read_ion(self, ion_str: str) -> Dict[str, Union[int, float, List[Dict[str, Any]]]]:
         """There are 2 types of files with and without cascades
 
         format:
@@ -526,14 +529,14 @@ class Collision:
 
         # Skip Ion Header
         for line in lines:
-            if re.match("^-+\r$", line):
+            if re.match(r"^-+\r$", line):
                 break
 
-        collisions = []
+        collisions: List[Dict[str, Any]] = []
 
         # Reads collisions for an ion
         for line in lines:
-            if re.match("^=+\r$", line):
+            if re.match(r"^=+\r$", line):
                 break
 
             tokens = line.split(chr(179))[1:-1]
@@ -551,7 +554,7 @@ class Collision:
                 target_vac = 0
                 target_replac = 0
                 target_inter = 0
-                cascade = None
+                cascade = []
 
             collisions.append({
                 'ion_number': int(tokens[0]),
@@ -573,8 +576,14 @@ class Collision:
             if target_disp is None:
                 break
 
+        return self._read_ion_footer(lines, collisions)
+
+    def _read_ion_footer(self, lines: Iterator[str],
+                         collisions: List[Dict[str, Any]],
+                         ) -> Dict[str, Union[int, float, List[Dict[str, Any]]]]:
         # Reads ion footer
-        ion_number = re.search(int_regex, next(lines)).group(0)
+        ion_num_match = re.search(int_regex, next(lines))
+        ion_number = ion_num_match.group(0) if ion_num_match else ""
 
         footer = ""
         for line in lines:
@@ -603,7 +612,8 @@ class Collision:
             'collisions': collisions
         }
 
-    def _read_cascade(self, lines):
+    def _read_cascade(self, lines: Iterator[str]) -> Tuple[float, float, float, float,
+                                                           List[Dict[str, Union[int, float]]]]:
         line = next(lines)
 
         assert re.match(r"^=+\r$", line)
@@ -633,7 +643,7 @@ class Collision:
             })
 
         if line.count('=') > 100:
-            return None, None, None, None, cascade
+            return 0.0, 0.0, 0.0, 0.0, cascade
 
         line = next(lines)
         tokens = line.split(chr(179))[1:-1]
@@ -645,14 +655,14 @@ class Collision:
             target_replac = float(tokens[4])
             target_inter = float(tokens[5])
         else:
-            target_disp = None
-            target_vac = None
-            target_replac = None
-            target_inter = None
+            target_disp = 0.0
+            target_vac = 0.0
+            target_replac = 0.0
+            target_inter = 0.0
 
         return target_disp, target_vac, target_replac, target_inter, cascade
 
-    def __getitem__(self, i):
+    def __getitem__(self, i: int) -> Dict[str, Union[int, float, List[Dict[str, Any]]]]:
         start = self._ion_index[i]
 
         if i == len(self._ion_index):
@@ -666,11 +676,11 @@ class Collision:
             ion_str = f.read(end - start)
             return self._read_ion(ion_str.decode('latin-1'))
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._ion_index) - 1
 
 
-def buffered_findall(filename, string, start=0):
+def buffered_findall(filename: str, string: bytes, start: int = 0) -> List[int]:
     """A method of reading a file in buffered pieces (needed for HUGE files)"""
     with open(filename, 'rb') as f:
         filesize = os.path.getsize(filename)
@@ -699,7 +709,7 @@ def buffered_findall(filename, string, start=0):
 class SRResults(object):
     """Read SR_OUTPUT.txt file generated by pysrim SR.run()"""
 
-    def __init__(self, directory, filename='SR_OUTPUT.txt'):
+    def __init__(self, directory: Union[str, Path], filename: str = 'SR_OUTPUT.txt') -> None:
         '''reads the file named SR_OUTPUT.txt in SR_Module folder'''
         with open(os.path.join(directory, filename), 'rb') as f:
             output = f.read()
@@ -709,13 +719,16 @@ class SRResults(object):
         self._ion = self._read_ion_info(output)
         self._target = self._read_target_info(output)
 
-    def _read_stopping_units(self, output):
+    def _read_stopping_units(self, output: bytes) -> str:
         '''read stopping units used in the calculation'''
         match = re.search(br'\s+Stopping Units\s+=+\s+(?P<stopping_units>.*)\s+\r\n', output)
-        out_string: str = match.group(1).decode('utf-8')
-        return out_string
+        if match:
+            out_string: str = match.group(1).decode('utf-8')
+            return out_string
+        else:
+            return ""
 
-    def _read_ion_info(self, output):
+    def _read_ion_info(self, output: bytes) -> Dict[str, Union[str, int, float]]:
         '''Example line to read from the file:
         Ion = Nickel       [28] , Mass = 58.6934 amu'''
         projectile_rexep = r'Ion\s+=\s+(.*?)\s+\[({})\]\s+, Mass\s+=\s({})\s+amu+\r\n'.format(int_regex, double_regex)
@@ -727,7 +740,7 @@ class SRResults(object):
         }
         return out_dict
 
-    def _read_target_info(self, output):
+    def _read_target_info(self, output: bytes) -> Dict[str, Union[float, Dict[str, float]]]:
         '''lines to find from the file:
         Density =  2.3210E+00 g/cm3 = 4.9766E+22 atoms/cm3
         ======= Target  Composition ========
@@ -742,17 +755,20 @@ class SRResults(object):
         density_reexp = r'Density\s+=\s+({})\s+g/cm3\s+=\s({})\s+atoms/cm3'.format(double_regex, double_regex)
 
         density_match = re.search(density_reexp.encode('utf-8'), output)
-
-        density = np.array([density_match.group(1), density_match.group(2)], dtype='float')
-
+        if density_match:
+            density = np.array([density_match.group(1), density_match.group(2)], dtype='float')
+        else:
+            raise SRIMOutputParseError("unable to extract density from file")
         # find the target composition table
         # .format(symbol_regex, int_regex, double_regex, double_regex)#(=*)\r\n'
         table_regexp = r'=*\s+Target\s+Composition\s+=*\r\n(.*\r\n){3}((?:\s*.+\s\r\n)+)\s=*\r\n\s+Bragg Correction'
         table_match = re.search(table_regexp.encode('utf-8'), output)
 
         # rearrange the match into list of layer elements
-        target_comp = table_match.groups()[-1].decode('utf-8').strip().split('\r\n')
-
+        if table_match:
+            target_comp = table_match.groups()[-1].decode('utf-8').strip().split('\r\n')
+        else:
+            raise SRIMOutputParseError("unable to extract target table from file")
         # create a dict object for target layers
         elements_dict = {}
 
@@ -772,7 +788,7 @@ class SRResults(object):
 
         return target_dict
 
-    def _read_stopping_table(self, output):
+    def _read_stopping_table(self, output: bytes) -> np.ndarray[float]:
         '''table header:
                 Ion        dE/dx      dE/dx     Projected  Longitudinal   Lateral
                Energy      Elec.      Nuclear     Range     Straggling   Straggling
@@ -795,24 +811,34 @@ class SRResults(object):
         '''
 
         table_header_regexp = r'\s+Ion\s+dE/dx\s+(.*\r\n){3}'
-        table_header_match = re.search(table_header_regexp.encode('utf-8'), output)
+        table_header_match: Optional[Match[bytes]] = re.search(table_header_regexp.encode('utf-8'), output)
 
         table_footer_regexp = r'\s*-*\r\n\sMultiply'
-        table_footer_match = re.search(table_footer_regexp.encode('utf-8'), output)
+        table_footer_match: Optional[Match[bytes]] = re.search(table_footer_regexp.encode('utf-8'), output)
 
-        start_idx = table_header_match.end()
-        stop_idx = table_footer_match.start()
+        if table_footer_match and table_header_match:
+            # assert isinstance(table_footer_match, Match)
+            start_idx = table_header_match.end()
+            stop_idx = table_footer_match.start()
+        else:
+            raise SRIMOutputParseError("unable to extract stopping table from file")
 
         rawdata = BytesIO(output[start_idx:stop_idx]).read().decode('utf-8')
 
-        output_array = [[] for i in range(6)]
+        output_array: List[List[float]] = [[] for i in range(6)]
 
         # function for
-        def energy_conversion(a): return 1 if ('keV' in a) else (1e3 if ('MeV' in a)
-                                                                 else (1e6 if 'GeV' in a else (1e-3 if 'eV' in a else None)))
+        def energy_conversion(a: Sequence[str]) -> float:
+            return 1.0 if ('keV' in a) else (1000 if ('MeV' in a)
+                                             else (1_000_000 if 'GeV' in a
+                                                   else (0.001 if 'eV' in a
+                                                         else 0.0)))
 
         # function for
-        def length_conversion(a): return 1 if ('um' in a) else (1e-4 if ('A' in a) else (1e3 if ('mm' in a) else None))
+        def length_conversion(a: Sequence[str]) -> float:
+            return 1.0 if ('um' in a) else (1e-4 if ('A' in a)
+                                            else (1e3 if ('mm' in a)
+                                                  else 0.0))
 
         for line in rawdata.split('\r\n'):
             line_array = line.split()
@@ -831,16 +857,17 @@ class SRResults(object):
             long_straggle = float(line_array[6])*L_coeff[1]
             lat_straggle = float(line_array[8])*L_coeff[2]
 
-            [output_array[i].append(d) for i, d in zip(range(6), [energy, Se, Sn, Range, long_straggle, lat_straggle])]
+            for i, d in zip(range(6), [energy, Se, Sn, Range, long_straggle, lat_straggle]):
+                output_array[i].append(d)
 
         return np.array(output_array)
 
-    @property
-    def units(self):
+    @ property
+    def units(self) -> str:
         return self._units
 
-    @property
-    def data(self):
+    @ property
+    def data(self) -> np.ndarray[float]:
         """
          [
            <energy in keV>,
@@ -853,8 +880,8 @@ class SRResults(object):
         """
         return self._data
 
-    @property
-    def ion(self):
+    @ property
+    def ion(self) -> Dict[str, Union[str, int, float]]:
         """
         {
            'name': <e.g. Silicon>,
@@ -864,8 +891,8 @@ class SRResults(object):
         """
         return self._ion
 
-    @property
-    def target(self):
+    @ property
+    def target(self) -> Dict[str, Union[float, Dict[str, float]]]:
         """
         {
            'density g/cm3': <float>,

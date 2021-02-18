@@ -213,7 +213,7 @@ class TRIMInput(object):
 
             input_str = ''
             for method in methods:
-                input_str += method.__call__()
+                input_str += method()
 
             f.write(input_str.encode('utf-8'))
 
@@ -293,7 +293,7 @@ class SRInput(object):
     def write(self) -> None:
         """Write SR calcualtion to ``SR.IN``"""
         with open('SR.IN', 'wb') as f:
-            methods: List[Callable[[], Any]] = [
+            methods: List[Callable[[], str]] = [
                 self._write_filename,
                 self._write_ion,
                 self._write_layer_info,
@@ -304,6 +304,6 @@ class SRInput(object):
 
             input_str: str = ''
             for method in methods:
-                input_str += method.__call__()
+                input_str += method()
 
             f.write(input_str.encode('utf-8'))

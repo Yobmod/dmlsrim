@@ -8,6 +8,8 @@ import shutil
 import distutils.spawn
 from pathlib import Path
 
+from typing_extensions import Literal
+
 from .core.utils import (
     check_input,
     is_zero, is_zero_or_one, is_zero_to_two, is_zero_to_five,
@@ -21,7 +23,7 @@ from .output import Results, SRResults
 from .input import AutoTRIM, TRIMInput, SRInput
 from .config import DEFAULT_SRIM_DIRECTORY
 
-from typing import TYPE_CHECKING, Dict, Union
+from typing import TYPE_CHECKING, Dict, Union, overload
 
 if TYPE_CHECKING:
     from .core.ion import Ion
@@ -286,6 +288,24 @@ class SRSettings(object):
             'output_filename': args.get('output_filename', 'SR_OUTPUT.txt'),
             'correction': check_input(float, is_positive, args.get('correction', 1.0))
         }
+
+    @property
+    def correction(self) -> float:
+        gotten = self._settings['correction']
+        assert isinstance(gotten, float)
+        return gotten
+
+    @property
+    def energy_min(self) -> float:
+        gotten = self._settings['energy_min']
+        assert isinstance(gotten, float)
+        return gotten
+
+    @property
+    def output_filename(self) -> str:
+        gotten = self._settings['output_filename']
+        assert isinstance(gotten, str)
+        return gotten
 
     def __getattr__(self, attr: str) -> Union[str, int, float]:
         return self._settings[attr]

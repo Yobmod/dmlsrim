@@ -10,10 +10,11 @@ repository = "https://github.com/Yobmod/dmlsrim"
 python = "^3.7"
 matplotlib = "*"  # brings numpy
 typing-extensions = "*"
-numpy = [
-    {version='==1.19.3', markers="sys_platform=='win64'"},
-    {git = 'https://github.com/numpy/numpy.git', markers="sys_platform=='linux'"},
-]
+numpy = "git = 'https://github.com/numpy/numpy.git'"
+#[
+    #{version='==1.19.3', markers="sys_platform=='win64'"},
+    #{git = 'https://github.com/numpy/numpy.git', markers="sys_platform=='linux'"},
+#]
 pysrim = "*"
 pydantic = "*"
 # data-science-types = "*"
@@ -57,25 +58,34 @@ pytest-cov = "*"
 pytest-mypy = "*"
 pytest-sugar = "*"
 pytest-xdist = "*"
+pytest-srcpaths = "*"
 pylama = "*"
 autopep8 = "*"
 flake8 = "*"
 flake8-comprehensions = "*"
 flake8-bugbear = "*"
+flake8-simplify = "*"
+flake8-2020 = "*"
+flake8-annotations-complexity = "*"
+# flake8-cognitive-complexity = "^0.1.0"
+# cohesion = "*"  # flake8
 pdbpp = "*"
 # pyinstaller = "*"
 # safety = "*"
 # black = "^19.10b0"
 gitpython = "*"
+# rich = "*"
 
 
 [build-system]
 requires = ["poetry>=1.1.4"]
 build-backend = "poetry.masonry.api"
 
-[tool.pytest.ini_options]
+# [tool.pytest.ini_options]
 
-testpaths = [    
-    "tests",
-    "integration",
-    ]
+# testpaths = [    
+#     "tests",
+#     "integration",
+#     ]
+
+# srcpaths = [".", "src", "lib"]
