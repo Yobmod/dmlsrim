@@ -1,6 +1,19 @@
+[paths]
+source =
+    .\src
+    
 [run]
 omit =
-  *settings/*,
-  *tests/*,
-  *.venv/*,
-  
+    *settings/*,
+    *tests/*,
+    *.venv/*,
+
+branch = true
+parallel = true
+source =
+    src
+    .
+
+[report]
+show_missing = true
+precision = 2
