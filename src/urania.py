@@ -13,6 +13,7 @@ if __name__ == "__main__":
 
     # create list of ions from list of energies in keV
     energy_kev_list = [
+        50,
         100,
         200,
         300,
