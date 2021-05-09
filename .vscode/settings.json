@@ -30,7 +30,7 @@
     "python.linting.pylamaEnabled": false,
     "python.linting.pylintEnabled": false,
     "python.poetryPath": "poetry",
-    "python.pythonPath": "C:\\dev\\dmlsrim\\.venv\\\\scripts\\\\python.exe",
+    "python.pythonPath": "c:\\dev\\dmlsrim\\.venv\\\\scripts\\\\python.exe",
     "python.testing.nosetestsEnabled": false,
     "python.testing.pytestEnabled": true,
     "python.testing.unittestEnabled": false,
