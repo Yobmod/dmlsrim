@@ -22,7 +22,7 @@ def test_srim_directory_path() -> None:
     assert srim_executable_directory.exists() is True, AssertionErrorColor + "Srim.exe path not found. Is it installed?"
 
 
-@pytest.mark.paths
+# @pytest.mark.paths
 def test_make_data_path() -> None:
     """Test creation of data paths using default args and given paths"""
 
@@ -34,7 +34,7 @@ def test_make_data_path() -> None:
     assert os.path.exists(out_data_path) is True, R"data path with '.\data' arg not found/created"
 
 
-@pytest.mark.paths
+# @pytest.mark.paths
 def test_make_image_path() -> None:
     """Test creation of image paths using default args and given paths"""
 
