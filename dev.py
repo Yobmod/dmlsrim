@@ -57,6 +57,7 @@ if update_pending:
     except Exception:
         raise
 
+"""
 venv_bytespath = subprocess.check_output("poetry env info --path".split(), shell=True)
 venv_str = venv_bytespath.decode("UTF-8")
 venv_path = venv_str.strip()
@@ -76,3 +77,4 @@ with open(".vscode/settings.json", "w") as f:
 
 
 # print(json.dumps(settings, sort_keys=True, indent=4))
+"""
